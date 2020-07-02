@@ -14,6 +14,12 @@ HTTPS clone URL: https://git.jetbrains.team/ind/exposed-intellij-plugin.git
 
 These instructions will get you a copy of the project up and running on your local machine for development and testing purposes.
 
+## Project Modules
+
+Gradle plugin: exposed-gradle.
+
+IntelliJ IDEA plugin: exposed-intellij.
+
 ## Prerequisites
 
 What things you need to install the software and how to install them.
