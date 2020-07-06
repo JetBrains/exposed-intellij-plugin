@@ -9,6 +9,7 @@ import schemacrawler.tools.databaseconnector.SingleUseUserCredentials
 import schemacrawler.utility.SchemaCrawlerUtility
 import java.math.BigDecimal
 import java.util.regex.Pattern
+import kotlin.reflect.KClass
 
 private val numericArgumentsPattern = Pattern.compile("\\(([0-9]+([, ]*[0-9])*)\\)")
 
@@ -27,42 +28,65 @@ fun getTables(databaseDriver: String, databaseName: String, user: String? = null
 
 private fun getColumnFunction(column: Column): String {
     val template = "%s(\"${column.name}\")"
+    var columnFunctionName: String? = null
+    var columnType: KClass<*>? = null
     val templateWithArguments = "%s(\"${column.name}\", %s)"
-    return when (column.columnDataType.typeMappedClass) {
-        Integer::class.javaObjectType ->
-            template.format("integer") + if (column.isAutoIncremented) ".autoIncrement()" else ""
-        Long::class.javaObjectType ->
-            template.format("long") + if (column.isAutoIncremented) ".autoIncrement()" else ""
-        BigDecimal::class.java ->
-            templateWithArguments.format("decimal", listOf(column.size, column.decimalDigits).joinToString(", "))
+    when (column.columnDataType.typeMappedClass) {
+        Integer::class.javaObjectType -> {
+            columnFunctionName = template.format("integer") + if (column.isAutoIncremented) ".autoIncrement()" else ""
+            // TODO replace this with a class
+            columnType = Int::class
+        }
+        Long::class.javaObjectType -> {
+            columnFunctionName = template.format("long") + if (column.isAutoIncremented) ".autoIncrement()" else ""
+            columnType = Long::class
+        }
+        BigDecimal::class.java -> {
+            columnFunctionName = templateWithArguments.format("decimal", listOf(column.size, column.decimalDigits).joinToString(", "))
+            columnType = BigDecimal::class
+        }
         Float::class.javaObjectType, Double::class.javaObjectType -> {
             val name = column.columnDataType.fullName.toLowerCase()
             val matcher = numericArgumentsPattern.matcher(name)
             if (matcher.find() && (name.contains("decimal") || name.contains("numeric"))) {
-                templateWithArguments.format("decimal", matcher.group(1))
+                columnFunctionName = templateWithArguments.format("decimal", matcher.group(1))
+                columnType = BigDecimal::class
             } else {
-                template.format("float")
+                columnFunctionName = template.format("float")
+                columnType = Float::class
             }
         }
-
-        Boolean::class.javaObjectType -> template.format("bool")
+        Boolean::class.javaObjectType -> {
+            columnFunctionName = template.format("bool")
+            columnType = Boolean::class
+        }
         String::class.java -> {
             val name = column.columnDataType.fullName.toLowerCase()
             val matcher = numericArgumentsPattern.matcher(name)
             val size = if (matcher.find()) matcher.group(1).takeWhile { it.isDigit() }.toInt() else column.size
-            when {
+            columnFunctionName = when {
                 name.contains("varchar") || name.contains("varying") -> templateWithArguments.format("varchar", size) // TODO no length varchar
                 name.contains("char") -> templateWithArguments.format("char", size)
                 name.contains("text") -> template.format("text")
                 else -> "" // TODO tell user about unsupported types
             }
+            columnType = String::class
         }
-        Object::class.javaObjectType -> when (column.columnDataType.fullName.toLowerCase()) {
-            "uuid" -> template.format("uuid")
-            else -> "" // TODO tell user about unsupported types
+        Object::class.javaObjectType -> {
+            columnFunctionName = when (column.columnDataType.fullName.toLowerCase()) {
+                "uuid" -> template.format("uuid")
+                else -> "" // TODO tell user about unsupported types
+            }
+            columnType = Object::class
         }
-        else -> "" // TODO tell user about unsupported types
     }
+
+    // TODO tell user; an exception or smth
+    if (columnType == null || columnFunctionName == null) {
+        return ""
+    }
+
+    return "val ${toCamelCase(column.name)}: Column<${columnType.simpleName}> = $columnFunctionName"
 }
 
 private fun toCamelCase(str: String, capitalizeFirst: Boolean = false) =
@@ -81,7 +105,7 @@ fun generateExposedTable(sqlTable: Table, indent: String = "    "): List<String>
         if (column.name == "id" && column.type.javaSqlType.defaultMappedClass == Integer::class.java) {
             continue
         }
-        result.add("${indent}val ${toCamelCase(column.name)} = ${getColumnFunction(column)}")
+        result.add(indent + getColumnFunction(column))
     }
     result.add("}")
     return result
