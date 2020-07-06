@@ -45,7 +45,7 @@ private fun getColumnFunction(column: Column): String {
             columnFunctionName = templateWithArguments.format("decimal", listOf(column.size, column.decimalDigits).joinToString(", "))
             columnType = BigDecimal::class
         }
-        Float::class.javaObjectType, Double::class.javaObjectType -> {
+        Float::class.javaObjectType-> {
             val name = column.columnDataType.fullName.toLowerCase()
             val matcher = numericArgumentsPattern.matcher(name)
             if (matcher.find() && (name.contains("decimal") || name.contains("numeric"))) {
@@ -55,6 +55,10 @@ private fun getColumnFunction(column: Column): String {
                 columnFunctionName = template.format("float")
                 columnType = Float::class
             }
+        }
+        Double::class.javaObjectType -> {
+            columnFunctionName = template.format("double")
+            columnType = Double::class
         }
         Boolean::class.javaObjectType -> {
             columnFunctionName = template.format("bool")

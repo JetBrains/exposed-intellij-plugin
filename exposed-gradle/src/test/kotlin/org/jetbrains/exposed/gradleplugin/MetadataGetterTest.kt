@@ -38,6 +38,7 @@ class MetadataGetterTest {
     }
 
     @Test
+    // sqlite types: real -> float; float, double -> double
     fun sqliteFloatingPointTypesTest() {
         sqliteTypesTest("floating_point_types", "FloatingPointTypes.kt")
     }
