@@ -33,9 +33,24 @@ private fun getColumnFunction(column: Column): String {
     val templateWithArguments = "%s(\"${column.name}\", %s)"
     when (column.columnDataType.typeMappedClass) {
         Integer::class.javaObjectType -> {
-            columnFunctionName = template.format("integer") + if (column.isAutoIncremented) ".autoIncrement()" else ""
-            // TODO replace this with a class
-            columnType = Int::class
+            when (column.columnDataType.fullName.toLowerCase()) {
+                // TODO do any DBs allow for autoincrement on byte
+                "tinyint" -> {
+                    columnFunctionName = template.format("byte") + if (column.isAutoIncremented) ".autoIncrement()" else ""
+                    columnType = Byte::class
+                }
+                "smallint", "int2" -> {
+                    columnFunctionName = template.format("short") + if (column.isAutoIncremented) ".autoIncrement()" else ""
+                    columnType = Short::class
+                }
+                // TODO in sqlite int8 -> integer but normally one would expect it to be bigint
+                //"int8" -> {}
+                else -> {
+                    columnFunctionName = template.format("integer") + if (column.isAutoIncremented) ".autoIncrement()" else ""
+                    columnType = Int::class
+                }
+            }
+
         }
         Long::class.javaObjectType -> {
             columnFunctionName = template.format("long") + if (column.isAutoIncremented) ".autoIncrement()" else ""
@@ -46,19 +61,19 @@ private fun getColumnFunction(column: Column): String {
             columnType = BigDecimal::class
         }
         Float::class.javaObjectType-> {
+            columnFunctionName = template.format("float")
+            columnType = Float::class
+        }
+        Double::class.javaObjectType -> {
             val name = column.columnDataType.fullName.toLowerCase()
             val matcher = numericArgumentsPattern.matcher(name)
             if (matcher.find() && (name.contains("decimal") || name.contains("numeric"))) {
                 columnFunctionName = templateWithArguments.format("decimal", matcher.group(1))
                 columnType = BigDecimal::class
             } else {
-                columnFunctionName = template.format("float")
-                columnType = Float::class
+                columnFunctionName = template.format("double")
+                columnType = Double::class
             }
-        }
-        Double::class.javaObjectType -> {
-            columnFunctionName = template.format("double")
-            columnType = Double::class
         }
         Boolean::class.javaObjectType -> {
             columnFunctionName = template.format("bool")
