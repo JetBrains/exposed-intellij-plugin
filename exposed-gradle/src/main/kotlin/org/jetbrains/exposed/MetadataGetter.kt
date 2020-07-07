@@ -8,6 +8,7 @@ import org.jetbrains.exposed.dao.id.IntIdTable
 import org.jetbrains.exposed.dao.id.LongIdTable
 import org.jetbrains.exposed.dao.id.UUIDTable
 import org.jetbrains.exposed.sql.statements.api.ExposedBlob
+import org.slf4j.LoggerFactory
 import schemacrawler.schema.Column
 import schemacrawler.schema.Table
 import schemacrawler.schemacrawler.SchemaCrawlerOptionsBuilder
@@ -19,6 +20,10 @@ import java.sql.Blob
 import java.util.*
 import java.util.regex.Pattern
 import kotlin.reflect.KClass
+
+class MetadataUnsupportedTypeException(msg: String) : Exception(msg)
+
+private val logger = LoggerFactory.getLogger("MetadataGetterLogger")
 
 private val numericArgumentsPattern = Pattern.compile("\\(([0-9]+([, ]*[0-9])*)\\)")
 
@@ -36,6 +41,8 @@ private fun getTables(databaseDriver: String, databaseName: String, user: String
 
 private fun toCamelCase(str: String, capitalizeFirst: Boolean = false) =
         CaseUtils.toCamelCase(str, capitalizeFirst, '_')
+
+private fun generateUnsupportedTypeErrorMessage(column: Column) = "Unable to map column ${column.name} of type ${column.columnDataType.fullName} to an Exposed column object"
 
 private fun generatePropertyForColumn(column: Column): PropertySpec {
     val packageName = "org.jetbrains.exposed.sql"
@@ -106,8 +113,9 @@ private fun generatePropertyForColumn(column: Column): PropertySpec {
                 name.contains("varchar") || name.contains("varying") -> columnInitializerCodeBlock("varchar", size)
                 name.contains("char") -> columnInitializerCodeBlock("char", size)
                 name.contains("text") -> columnInitializerCodeBlock("text")
-                // TODO tell user about unsupported types
-                else -> CodeBlock.of("")
+                else -> {
+                    throw MetadataUnsupportedTypeException(generateUnsupportedTypeErrorMessage(column))
+                }
             }
             columnType = String::class
         }
@@ -117,7 +125,9 @@ private fun generatePropertyForColumn(column: Column): PropertySpec {
                     columnType = UUID::class
                     columnInitializerCodeBlock("uuid")
                 }
-                else -> CodeBlock.of("") // TODO tell user about unsupported types
+                else -> {
+                    throw MetadataUnsupportedTypeException(generateUnsupportedTypeErrorMessage(column))
+                }
             }
         }
         Blob::class.javaObjectType -> {
@@ -127,9 +137,8 @@ private fun generatePropertyForColumn(column: Column): PropertySpec {
         // TODO binary
     }
 
-    // TODO throw a custom exception?
     if (columnInitializerBlock == null || columnType == null) {
-        return PropertySpec.builder(columnName, org.jetbrains.exposed.sql.Column::class).build()
+        throw MetadataUnsupportedTypeException(generateUnsupportedTypeErrorMessage(column))
     }
 
     if (column.isAutoIncremented) {
@@ -179,7 +188,12 @@ private fun generateExposedTable(sqlTable: Table): TypeSpec {
         if (column == idColumn) {
             continue
         }
-        tableObject.addProperty(generatePropertyForColumn(column))
+        try {
+            tableObject.addProperty(generatePropertyForColumn(column))
+        } catch (e: MetadataUnsupportedTypeException) {
+            // TODO log the stacktrace or not? technically this should be readable by the client, so... not?
+            logger.error("Unsupported type", e)
+        }
     }
 
     return tableObject.build()
@@ -190,7 +204,7 @@ fun generateExposedTablesForDatabase(
         databaseName: String,
         user: String? = null,
         password: String? = null,
-        tableName: String?
+        tableName: String? = null
 ): FileSpec {
     val fileSpec = FileSpec.builder("", "${toCamelCase(databaseName, capitalizeFirst = true)}.kt")
     val tables = getTables(databaseDriver, databaseName, user, password)
