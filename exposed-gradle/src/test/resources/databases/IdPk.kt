@@ -1,3 +1,3 @@
-object IdPk : IntIdTable("IdPk", "column1") {
-    val column2: Column<String> = text("column2")
+object IdPk : IntIdTable("id_pk", "column_1") {
+    val column2: Column<String> = text("column_2")
 }

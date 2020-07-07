@@ -1,4 +1,4 @@
-object FloatingPointTypes : Table() {
+object FloatingPointTypes : Table("floating_point_types") {
     val f1: Column<Float> = float("f1")
     val f2: Column<Double> = double("f2")
     val f3: Column<Double> = double("f3")
