@@ -156,13 +156,20 @@ private fun generateExposedTable(sqlTable: Table): TypeSpec {
         org.jetbrains.exposed.sql.Table::class
     }
 
-    val tableObject = TypeSpec.objectBuilder(toCamelCase(sqlTable.fullName, capitalizeFirst = true)).superclass(superclass)
+    val tableObject = TypeSpec.objectBuilder(toCamelCase(sqlTable.fullName, capitalizeFirst = true))
     if (idColumn != null) {
+        if (superclass == IdTable::class) {
+            tableObject.superclass(superclass.parameterizedBy(idColumn.columnDataType.typeMappedClass.kotlin))
+        } else {
+            tableObject.superclass(superclass)
+        }
         tableObject.addSuperclassConstructorParameter(
                 "%S, %S",
                 toCamelCase(sqlTable.name, true),
                 toCamelCase(idColumn.name) // to specify the id column name, which might not be "id"
         )
+    } else {
+        tableObject.superclass(superclass)
     }
     for (column in sqlTable.columns) {
         if (column == idColumn) {
@@ -193,6 +200,10 @@ fun generateExposedTablesForDatabase(
     return fileSpec.build()
 }
 
+fun main() {
+    val fileSpec = generateExposedTablesForDatabase("sqlite", "exposed-gradle/src/test/resources/databases/idpk.db", "root", "root", null)
+    fileSpec.writeTo(System.out)
+}
 
 
 

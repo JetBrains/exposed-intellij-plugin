@@ -66,4 +66,9 @@ class MetadataGetterTest {
     fun intIdTableTest() {
         checkDatabaseMetadataAgainstFile("idpk.db", "sqlite", "IdPk.kt")
     }
+
+    @Test
+    fun textIdTableTest() {
+        checkDatabaseMetadataAgainstFile("textpk.db", "sqlite", "TextPk.kt")
+    }
 }
