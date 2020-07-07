@@ -62,12 +62,8 @@ class MetadataGetterTest {
         sqliteTypesTest("char_types", "CharTypes.kt")
     }
 
-    /*@Test
+    @Test
     fun intIdTableTest() {
-        val tables = getSqliteTablesForDatabase("intid.db")
-        assertEquals(1, tables.size)
-        val table = tables[0]
-        assertEquals("int_id", table.name)
-        checkTableMetadataAgainstFile(table, "IntId.kt")
-    }*/
+        checkDatabaseMetadataAgainstFile("idpk.db", "sqlite", "IdPk.kt")
+    }
 }

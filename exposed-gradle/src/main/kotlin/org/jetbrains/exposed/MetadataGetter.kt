@@ -3,7 +3,10 @@ package org.jetbrains.exposed
 import com.squareup.kotlinpoet.*
 import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
 import org.apache.commons.text.CaseUtils
+import org.jetbrains.exposed.dao.id.IdTable
 import org.jetbrains.exposed.dao.id.IntIdTable
+import org.jetbrains.exposed.dao.id.LongIdTable
+import org.jetbrains.exposed.dao.id.UUIDTable
 import org.jetbrains.exposed.sql.statements.api.ExposedBlob
 import schemacrawler.schema.Column
 import schemacrawler.schema.Table
@@ -36,11 +39,13 @@ private fun toCamelCase(str: String, capitalizeFirst: Boolean = false) =
 
 private fun generatePropertyForColumn(column: Column): PropertySpec {
     val packageName = "org.jetbrains.exposed.sql"
+    val columnName = if (column.name.contains('_')) toCamelCase(column.name) else column.name
+
     fun columnInitializerCodeBlock(functionName: String, vararg arguments: Any): CodeBlock =
             if (arguments.isEmpty()) {
-                CodeBlock.of("%M(\"${column.name}\")", MemberName(packageName, functionName))
+                CodeBlock.of("%M(\"${columnName}\")", MemberName(packageName, functionName))
             } else {
-                CodeBlock.of("%M(\"${column.name}\", ${arguments.joinToString(", ")})", MemberName(packageName, functionName))
+                CodeBlock.of("%M(\"${columnName}\", ${arguments.joinToString(", ")})", MemberName(packageName, functionName))
             }
 
     var columnInitializerBlock: CodeBlock? = null
@@ -48,7 +53,6 @@ private fun generatePropertyForColumn(column: Column): PropertySpec {
     when (column.columnDataType.typeMappedClass) {
         Integer::class.javaObjectType -> {
             when (column.columnDataType.fullName.toLowerCase()) {
-                // TODO do any DBs allow for autoincrement on byte
                 "tinyint" -> {
                     columnInitializerBlock = columnInitializerCodeBlock("byte")
                     columnType = Byte::class
@@ -125,26 +129,43 @@ private fun generatePropertyForColumn(column: Column): PropertySpec {
 
     // TODO throw a custom exception?
     if (columnInitializerBlock == null || columnType == null) {
-        return PropertySpec.builder(toCamelCase(column.name), org.jetbrains.exposed.sql.Column::class).build()
+        return PropertySpec.builder(columnName, org.jetbrains.exposed.sql.Column::class).build()
     }
 
     if (column.isAutoIncremented) {
         columnInitializerBlock = columnInitializerBlock.toBuilder().add(".autoIncrement()").build()
     }
 
-    return PropertySpec.builder(toCamelCase(column.name), org.jetbrains.exposed.sql.Column::class.parameterizedBy(columnType)).initializer(columnInitializerBlock).build()
+    return PropertySpec.builder(columnName, org.jetbrains.exposed.sql.Column::class.parameterizedBy(columnType))
+            .initializer(columnInitializerBlock).build()
 }
 
 private fun generateExposedTable(sqlTable: Table): TypeSpec {
-    val superclass =
-            if (sqlTable.columns.any { it.name == "id" && it.columnDataType.typeMappedClass == Integer::class.javaObjectType }) {
-                IntIdTable::class
-            } else {
-                org.jetbrains.exposed.sql.Table::class
-            }
+    val primaryKeyColumns = sqlTable.columns.filter { it.isPartOfPrimaryKey }
+    val idColumn = if (primaryKeyColumns.size == 1) primaryKeyColumns[0] else null
+    val superclass = if (idColumn != null) {
+        when (idColumn.columnDataType.typeMappedClass) {
+            Integer::class.javaObjectType -> IntIdTable::class
+            Long::class.javaObjectType -> LongIdTable::class
+            // TODO how to parametrize
+            Object::class.javaObjectType ->
+                if (idColumn.columnDataType.fullName.toLowerCase() == "uuid") UUIDTable::class else IdTable::class
+            else -> IdTable::class
+        }
+    } else {
+        org.jetbrains.exposed.sql.Table::class
+    }
+
     val tableObject = TypeSpec.objectBuilder(toCamelCase(sqlTable.fullName, capitalizeFirst = true)).superclass(superclass)
+    if (idColumn != null) {
+        tableObject.addSuperclassConstructorParameter(
+                "%S, %S",
+                toCamelCase(sqlTable.name, true),
+                toCamelCase(idColumn.name) // to specify the id column name, which might not be "id"
+        )
+    }
     for (column in sqlTable.columns) {
-        if (column.name == "id" && column.columnDataType.typeMappedClass == Integer::class.javaObjectType) {
+        if (column == idColumn) {
             continue
         }
         tableObject.addProperty(generatePropertyForColumn(column))
@@ -172,10 +193,6 @@ fun generateExposedTablesForDatabase(
     return fileSpec.build()
 }
 
-fun main() {
-    val fileSpec = generateExposedTablesForDatabase("sqlite", "exposed-gradle/src/test/resources/databases/vartypes/vartypes.db", "root", "root", null)
-    fileSpec.writeTo(System.out)
-}
 
 
 
