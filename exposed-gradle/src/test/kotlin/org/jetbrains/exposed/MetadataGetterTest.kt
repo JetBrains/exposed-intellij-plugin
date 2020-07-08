@@ -32,7 +32,7 @@ class MetadataGetterTest {
     }
 
     private fun sqliteTypesTest(tableName: String, exposedTableFilename: String) {
-        checkDatabaseMetadataAgainstFile("vartypes/vartypes.db", "sqlite", exposedTableFilename, tableName, "vartypes")
+        checkDatabaseMetadataAgainstFile("vartypes_sqlite/vartypes.db", "sqlite", exposedTableFilename, tableName, "vartypes_sqlite")
     }
 
     @Test
