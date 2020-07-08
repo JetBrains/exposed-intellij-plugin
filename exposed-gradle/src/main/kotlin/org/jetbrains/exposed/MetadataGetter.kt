@@ -42,17 +42,36 @@ private fun getTables(databaseDriver: String, databaseName: String, user: String
 private fun toCamelCase(str: String, capitalizeFirst: Boolean = false) =
         CaseUtils.toCamelCase(str, capitalizeFirst, '_')
 
+// kotlin property names should be in camel case without capitalization
+private fun getPropertyNameForColumn(column: Column) = when {
+    column.name.contains('_') -> toCamelCase(column.name)
+    column.name.all { it.isUpperCase() } -> column.name.toLowerCase()
+    else -> column.name.decapitalize()
+}
+
+// column names should be exactly as in the database; using lowercase for uniformity
+private fun getColumnName(column: Column) = column.name.toLowerCase()
+
+private fun getObjectNameForTable(table: Table) = when {
+    table.name.contains('_') -> toCamelCase(table.name, capitalizeFirst = true)
+    table.name.all { it.isUpperCase() } -> table.name.toLowerCase().capitalize()
+    else -> table.name.capitalize()
+}
+
+private fun getTableName(table: Table) = table.name.toLowerCase()
+
 private fun generateUnsupportedTypeErrorMessage(column: Column) = "Unable to map column ${column.name} of type ${column.columnDataType.fullName} to an Exposed column object"
 
 private fun generatePropertyForColumn(column: Column): PropertySpec {
     val packageName = "org.jetbrains.exposed.sql"
-    val columnName = if (column.name.contains('_')) toCamelCase(column.name) else column.name
+    val columnVariableName = getPropertyNameForColumn(column)
+    val columnName = getColumnName(column)
 
     fun columnInitializerCodeBlock(functionName: String, vararg arguments: Any): CodeBlock =
             if (arguments.isEmpty()) {
-                CodeBlock.of("%M(\"${column.name}\")", MemberName(packageName, functionName))
+                CodeBlock.of("%M(\"$columnName\")", MemberName(packageName, functionName))
             } else {
-                CodeBlock.of("%M(\"${column.name}\", ${arguments.joinToString(", ")})", MemberName(packageName, functionName))
+                CodeBlock.of("%M(\"$columnName\", ${arguments.joinToString(", ")})", MemberName(packageName, functionName))
             }
 
     var columnInitializerBlock: CodeBlock? = null
@@ -145,7 +164,7 @@ private fun generatePropertyForColumn(column: Column): PropertySpec {
         columnInitializerBlock = columnInitializerBlock.toBuilder().add(".autoIncrement()").build()
     }
 
-    return PropertySpec.builder(columnName, org.jetbrains.exposed.sql.Column::class.parameterizedBy(columnType))
+    return PropertySpec.builder(columnVariableName, org.jetbrains.exposed.sql.Column::class.parameterizedBy(columnType))
             .initializer(columnInitializerBlock).build()
 }
 
@@ -164,8 +183,9 @@ private fun generateExposedTable(sqlTable: Table): TypeSpec {
         org.jetbrains.exposed.sql.Table::class
     }
 
-    val tableName = if (sqlTable.name.contains('_')) toCamelCase(sqlTable.name, capitalizeFirst = true) else sqlTable.name.capitalize()
-    val tableObject = TypeSpec.objectBuilder(tableName)
+    val tableObjectName = getObjectNameForTable(sqlTable)
+    val tableName = getTableName(sqlTable)
+    val tableObject = TypeSpec.objectBuilder(tableObjectName)
     if (idColumn != null) {
         if (superclass == IdTable::class) {
             tableObject.superclass(superclass.parameterizedBy(idColumn.columnDataType.typeMappedClass.kotlin))
@@ -174,14 +194,14 @@ private fun generateExposedTable(sqlTable: Table): TypeSpec {
         }
         tableObject.addSuperclassConstructorParameter(
                 "%S, %S",
-                sqlTable.name,
-                idColumn.name // to specify the id column name, which might not be "id"
+                tableName,
+                getColumnName(idColumn) // to specify the id column name, which might not be "id"
         )
     } else {
         tableObject.superclass(superclass)
         tableObject.addSuperclassConstructorParameter(
                 "%S",
-                sqlTable.name
+                tableName
         )
     }
     for (column in sqlTable.columns) {
@@ -209,7 +229,7 @@ fun generateExposedTablesForDatabase(
     val fileSpec = FileSpec.builder("", "${toCamelCase(databaseName, capitalizeFirst = true)}.kt")
     val tables = getTables(databaseDriver, databaseName, user, password)
     for (table in tables) {
-        if (tableName != null && table.name != tableName) {
+        if (tableName != null && table.name.toLowerCase() != tableName.toLowerCase()) {
             continue
         }
         fileSpec.addType(generateExposedTable(table))
