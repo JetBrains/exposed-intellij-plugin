@@ -1,9 +1,8 @@
 package org.jetbrains.exposed
 
-import org.junit.Assert.*
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
-import java.lang.StringBuilder
 import java.nio.file.Paths
 
 class MetadataGetterTest {
@@ -12,14 +11,16 @@ class MetadataGetterTest {
             databaseDriver: String,
             testDataFilename: String,
             tableName: String? = null,
-            vararg fileParentPath: String
+            fileParentPath: String = "",
+            databaseMode: String? = null
     ) {
-        val fileSpec = generateExposedTablesForDatabase(databaseDriver, "./src/test/resources/databases/$databaseName", null, null, tableName)
+        val dbMode = if (databaseMode != null) ";MODE=$databaseMode" else ""
+        val fileSpec = generateExposedTablesForDatabase(databaseDriver, "./src/test/resources/databases/$databaseName$dbMode", null, null, tableName)
         val sb = StringBuilder()
         fileSpec.writeTo(sb)
         val lines = sb.splitToSequence("\n").filterNot { it.startsWith("import ") || it.isBlank() }.toList().map { it.trim() }
 
-        val p = Paths.get("src", "test", "resources", "databases", *fileParentPath)
+        val p = Paths.get("src", "test", "resources", "databases", fileParentPath)
         val expectedLines = File(p.toFile(), testDataFilename).readLines().filterNot { it.isBlank() }.map { it.trim() }
         assertTrue(lines.size == expectedLines.size)
         lines.forEach { assertTrue(it in expectedLines) }
@@ -135,5 +136,46 @@ class MetadataGetterTest {
     @Test
     fun h2BinaryTypesTest() {
         h2TypesTest("binary_types", "BinaryTypes.kt")
+    }
+
+    private fun psqlTypesTest(tableName: String, exposedTableFilename: String) {
+        checkDatabaseMetadataAgainstFile("vartypes_psql/h2_psql_vartypes.db", "h2:file", exposedTableFilename, tableName, "vartypes_psql", "PostgreSQL")
+    }
+
+    @Test
+    fun psqlIntegerTypesTest() {
+        psqlTypesTest("integer_types", "IntegerTypes.kt")
+    }
+
+    @Test
+    fun psqlFloatingPointTypesTest() {
+        psqlTypesTest("floating_point_types", "FloatingPointTypes.kt")
+    }
+
+    @Test
+    fun psqlLongTypesTest() {
+        psqlTypesTest("long_types", "LongTypes.kt")
+    }
+
+    @Test
+    // be wary of precision and scale values when they are not explicitly stated by the user
+    // h2 psql gives 65535/32767; actual postgres may use different values
+    fun psqlNumericTypesTest() {
+        psqlTypesTest("numeric_types", "NumericTypes.kt")
+    }
+
+    @Test
+    fun psqlCharTypesTest() {
+        psqlTypesTest("char_types", "CharTypes.kt")
+    }
+
+    @Test
+    fun psqlSmallIntTypesTest() {
+        psqlTypesTest("small_int_types", "SmallIntTypes.kt")
+    }
+
+    @Test
+    fun psqlMiscTypesTest() {
+        psqlTypesTest("misc_types", "MiscTypes.kt")
     }
 }
