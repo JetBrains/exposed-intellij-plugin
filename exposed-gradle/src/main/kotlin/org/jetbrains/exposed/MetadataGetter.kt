@@ -17,6 +17,7 @@ import schemacrawler.tools.databaseconnector.SingleUseUserCredentials
 import schemacrawler.utility.SchemaCrawlerUtility
 import java.math.BigDecimal
 import java.sql.Blob
+import java.sql.Clob
 import java.util.*
 import java.util.regex.Pattern
 import kotlin.reflect.KClass
@@ -138,6 +139,10 @@ private fun generatePropertyForColumn(column: Column): PropertySpec {
             }
             columnType = String::class
         }
+        Clob::class.javaObjectType -> {
+            columnInitializerBlock = columnInitializerCodeBlock("text")
+            columnType = String::class
+        }
         Object::class.javaObjectType -> {
             columnInitializerBlock = when (column.columnDataType.fullName.toLowerCase()) {
                 "uuid" -> {
@@ -152,6 +157,16 @@ private fun generatePropertyForColumn(column: Column): PropertySpec {
         Blob::class.javaObjectType -> {
             columnInitializerBlock = columnInitializerCodeBlock("blob")
             columnType = ExposedBlob::class
+        }
+        UUID::class.javaObjectType -> {
+            columnInitializerBlock = columnInitializerCodeBlock("uuid")
+            columnType = UUID::class
+        }
+        else -> {
+            if (column.columnDataType.fullName.toLowerCase() == "uuid") {
+                columnInitializerBlock = columnInitializerCodeBlock("uuid")
+                columnType = UUID::class
+            }
         }
         // TODO binary
     }

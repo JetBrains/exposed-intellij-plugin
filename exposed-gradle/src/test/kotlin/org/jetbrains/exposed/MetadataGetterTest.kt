@@ -14,11 +14,10 @@ class MetadataGetterTest {
             tableName: String? = null,
             vararg fileParentPath: String
     ) {
-        val fileSpec = generateExposedTablesForDatabase(databaseDriver, "src/test/resources/databases/$databaseName", "root", "root", tableName)
+        val fileSpec = generateExposedTablesForDatabase(databaseDriver, "./src/test/resources/databases/$databaseName", null, null, tableName)
         val sb = StringBuilder()
         fileSpec.writeTo(sb)
         val lines = sb.splitToSequence("\n").filterNot { it.startsWith("import ") || it.isBlank() }.toList().map { it.trim() }
-
 
         val p = Paths.get("src", "test", "resources", "databases", *fileParentPath)
         val expectedLines = File(p.toFile(), testDataFilename).readLines().filterNot { it.isBlank() }.map { it.trim() }
@@ -70,5 +69,66 @@ class MetadataGetterTest {
     @Test
     fun textIdTableTest() {
         checkDatabaseMetadataAgainstFile("textpk.db", "sqlite", "TextPk.kt")
+    }
+
+    // TODO generalize
+    private fun h2TypesTest(tableName: String, exposedTableFilename: String) {
+        checkDatabaseMetadataAgainstFile("vartypes_h2/h2vartypes.db", "h2:file", exposedTableFilename, tableName, "vartypes_h2")
+    }
+
+    @Test
+    fun h2IntegerTypesTest() {
+        h2TypesTest("integer_types", "IntegerTypes.kt")
+    }
+
+    @Test
+    fun h2BooleanTypesTest() {
+        h2TypesTest("boolean_types", "BooleanTypes.kt")
+    }
+
+    @Test
+    fun h2SmallIntTypesTest() {
+        h2TypesTest("small_int_types", "SmallIntTypes.kt")
+    }
+
+    @Test
+    // h2 identity maps to java Long but gives an IdTable
+    fun h2LongTypesTest() {
+        h2TypesTest("long_types", "LongTypes.kt")
+    }
+
+    @Test
+    fun h2DecimalTypesTest() {
+        h2TypesTest("decimal_types", "DecimalTypes.kt")
+    }
+
+    @Test
+    fun h2DoubleTypesTest() {
+        h2TypesTest("double_types", "DoubleTypes.kt")
+    }
+
+    @Test
+    fun h2FloatTypesTest() {
+        h2TypesTest("float_types", "FloatTypes.kt")
+    }
+
+    @Test
+    fun h2CharTypesTest() {
+        h2TypesTest("char_types", "CharTypes.kt")
+    }
+
+    @Test
+    fun h2VarcharTypesTest() {
+        h2TypesTest("varchar_types", "VarcharTypes.kt")
+    }
+
+    @Test
+    fun h2TextTypesTest() {
+        h2TypesTest("text_types", "TextTypes.kt")
+    }
+
+    @Test
+    fun h2MiscTypesTest() {
+        h2TypesTest("misc_types", "MiscTypes.kt")
     }
 }
