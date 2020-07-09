@@ -68,6 +68,9 @@ private fun generatePropertyForColumn(column: Column): PropertySpec {
     val columnVariableName = getPropertyNameForColumn(column)
     val columnName = getColumnName(column)
 
+    var columnInitializerBlock: CodeBlock? = null
+    var columnType: KClass<*>? = null
+
     fun columnInitializerCodeBlock(functionName: String, vararg arguments: Any): CodeBlock =
             if (arguments.isEmpty()) {
                 CodeBlock.of("%M(\"$columnName\")", MemberName(packageName, functionName))
@@ -75,97 +78,60 @@ private fun generatePropertyForColumn(column: Column): PropertySpec {
                 CodeBlock.of("%M(\"$columnName\", ${arguments.joinToString(", ")})", MemberName(packageName, functionName))
             }
 
-    var columnInitializerBlock: CodeBlock? = null
-    var columnType: KClass<*>? = null
+    fun initializeColumnParameters(columnTypeClass: KClass<*>, functionName: String, vararg arguments: Any) {
+        columnInitializerBlock = columnInitializerCodeBlock(functionName, *arguments)
+        columnType = columnTypeClass
+    }
+
+
     when (column.columnDataType.typeMappedClass) {
         Integer::class.javaObjectType -> {
             when (column.columnDataType.fullName.toLowerCase()) {
-                "tinyint" -> {
-                    columnInitializerBlock = columnInitializerCodeBlock("byte")
-                    columnType = Byte::class
-                }
-                "smallint", "int2" -> {
-                    columnInitializerBlock = columnInitializerCodeBlock("short")
-                    columnType = Short::class
-                }
-                "int8" -> {
-                    columnInitializerBlock = columnInitializerCodeBlock("long")
-                    columnType = Long::class
-                }
-                else -> {
-                    columnInitializerBlock = columnInitializerCodeBlock("integer")
-                    columnType = Int::class
-                }
+                "tinyint" -> initializeColumnParameters(Byte::class, "byte")
+                "smallint", "int2" -> initializeColumnParameters(Short::class, "short")
+                "int8" -> initializeColumnParameters(Long::class, "long")
+                else -> initializeColumnParameters(Int::class, "integer")
             }
         }
-        Long::class.javaObjectType -> {
-            columnInitializerBlock = columnInitializerCodeBlock("long")
-            columnType = Long::class
-        }
-        BigDecimal::class.java -> {
-            columnInitializerBlock = columnInitializerCodeBlock("decimal", column.size, column.decimalDigits)
-            columnType = BigDecimal::class
-        }
-        Float::class.javaObjectType-> {
-            columnInitializerBlock = columnInitializerCodeBlock("float")
-            columnType = Float::class
-        }
+        Long::class.javaObjectType -> initializeColumnParameters(Long::class, "long")
+        BigDecimal::class.java ->
+            initializeColumnParameters(BigDecimal::class, "decimal", column.size, column.decimalDigits)
+        Float::class.javaObjectType-> initializeColumnParameters(Float::class, "float")
         Double::class.javaObjectType -> {
             val name = column.columnDataType.fullName.toLowerCase()
             val matcher = numericArgumentsPattern.matcher(name)
             if (matcher.find() && (name.contains("decimal") || name.contains("numeric"))) {
-                columnInitializerBlock = columnInitializerCodeBlock("decimal", matcher.group(1))
-                columnType = BigDecimal::class
+                initializeColumnParameters(BigDecimal::class, "decimal", matcher.group(1))
             } else {
-                columnInitializerBlock = columnInitializerCodeBlock("double")
-                columnType = Double::class
+                initializeColumnParameters(Double::class, "double")
             }
         }
-        Boolean::class.javaObjectType -> {
-            columnInitializerBlock = columnInitializerCodeBlock("bool")
-            columnType = Boolean::class
-        }
+        Boolean::class.javaObjectType -> initializeColumnParameters(Boolean::class, "bool")
         String::class.java -> {
             val name = column.columnDataType.fullName.toLowerCase()
             val matcher = numericArgumentsPattern.matcher(name)
             val size = if (matcher.find()) matcher.group(1).takeWhile { it.isDigit() }.toInt() else column.size
-            columnInitializerBlock = when {
-                name.contains("varchar") || name.contains("varying") -> columnInitializerCodeBlock("varchar", size)
-                name.contains("char") -> columnInitializerCodeBlock("char", size)
-                name.contains("text") -> columnInitializerCodeBlock("text")
-                else -> {
-                    throw MetadataUnsupportedTypeException(generateUnsupportedTypeErrorMessage(column))
-                }
+            when {
+                name.contains("varchar") || name.contains("varying") -> initializeColumnParameters(String::class, "varchar", size)
+                name.contains("char") -> initializeColumnParameters(String::class, "char", size)
+                name.contains("text") -> initializeColumnParameters(String::class, "text")
+                else -> throw MetadataUnsupportedTypeException(generateUnsupportedTypeErrorMessage(column))
             }
-            columnType = String::class
         }
         Clob::class.javaObjectType -> {
-            columnInitializerBlock = columnInitializerCodeBlock("text")
-            columnType = String::class
+            initializeColumnParameters(String::class, "text")
         }
         Object::class.javaObjectType -> {
-            columnInitializerBlock = when (column.columnDataType.fullName.toLowerCase()) {
-                "uuid" -> {
-                    columnType = UUID::class
-                    columnInitializerCodeBlock("uuid")
-                }
-                else -> {
-                    throw MetadataUnsupportedTypeException(generateUnsupportedTypeErrorMessage(column))
-                }
+            when (column.columnDataType.fullName.toLowerCase()) {
+                "uuid" -> initializeColumnParameters(UUID::class, "uuid")
+                else -> throw MetadataUnsupportedTypeException(generateUnsupportedTypeErrorMessage(column))
             }
         }
-        Blob::class.javaObjectType -> {
-            columnInitializerBlock = columnInitializerCodeBlock("blob")
-            columnType = ExposedBlob::class
-        }
-        UUID::class.javaObjectType -> {
-            columnInitializerBlock = columnInitializerCodeBlock("uuid")
-            columnType = UUID::class
-        }
+        Blob::class.javaObjectType -> initializeColumnParameters(ExposedBlob::class, "blob")
+        UUID::class.javaObjectType -> initializeColumnParameters(UUID::class, "uuid")
         else -> {
             if (column.columnDataType.fullName.toLowerCase() == "uuid") {
-                columnInitializerBlock = columnInitializerCodeBlock("uuid")
-                columnType = UUID::class
+                initializeColumnParameters(UUID::class, "uuid")
             }
         }
         // TODO binary
@@ -176,11 +142,12 @@ private fun generatePropertyForColumn(column: Column): PropertySpec {
     }
 
     if (column.isAutoIncremented) {
-        columnInitializerBlock = columnInitializerBlock.toBuilder().add(".autoIncrement()").build()
+        columnInitializerBlock = columnInitializerBlock!!.toBuilder().add(".autoIncrement()").build()
     }
 
-    return PropertySpec.builder(columnVariableName, org.jetbrains.exposed.sql.Column::class.parameterizedBy(columnType))
-            .initializer(columnInitializerBlock).build()
+    return PropertySpec.builder(columnVariableName, org.jetbrains.exposed.sql.Column::class.parameterizedBy(columnType!!))
+            .initializer(columnInitializerBlock!!)
+            .build()
 }
 
 private fun generateExposedTable(sqlTable: Table): TypeSpec {
