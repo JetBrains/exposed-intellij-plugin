@@ -130,11 +130,13 @@ private fun generatePropertyForColumn(column: Column): PropertySpec {
         Blob::class.javaObjectType -> initializeColumnParameters(ExposedBlob::class, "blob")
         UUID::class.javaObjectType -> initializeColumnParameters(UUID::class, "uuid")
         else -> {
-            if (column.columnDataType.fullName.toLowerCase() == "uuid") {
-                initializeColumnParameters(UUID::class, "uuid")
+            val name = column.columnDataType.fullName.toLowerCase()
+            when {
+                name.contains("uuid") -> initializeColumnParameters(UUID::class, "uuid")
+                // can be 'varbinary'
+                name.contains("binary") || name.contains("bytea") -> initializeColumnParameters(ByteArray::class, "binary", column.size)
             }
         }
-        // TODO binary
     }
 
     if (columnInitializerBlock == null || columnType == null) {
@@ -157,9 +159,7 @@ private fun generateExposedTable(sqlTable: Table): TypeSpec {
         when (idColumn.columnDataType.typeMappedClass) {
             Integer::class.javaObjectType -> IntIdTable::class
             Long::class.javaObjectType -> LongIdTable::class
-            Object::class.javaObjectType ->
-                if (idColumn.columnDataType.fullName.toLowerCase() == "uuid") UUIDTable::class else IdTable::class
-            else -> IdTable::class
+            else -> if (idColumn.columnDataType.fullName.toLowerCase() == "uuid") UUIDTable::class else IdTable::class
         }
     } else {
         org.jetbrains.exposed.sql.Table::class
@@ -200,6 +200,7 @@ private fun generateExposedTable(sqlTable: Table): TypeSpec {
 
     return tableObject.build()
 }
+
 
 fun generateExposedTablesForDatabase(
         databaseDriver: String,

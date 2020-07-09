@@ -131,4 +131,9 @@ class MetadataGetterTest {
     fun h2MiscTypesTest() {
         h2TypesTest("misc_types", "MiscTypes.kt")
     }
+
+    @Test
+    fun h2BinaryTypesTest() {
+        h2TypesTest("binary_types", "BinaryTypes.kt")
+    }
 }
