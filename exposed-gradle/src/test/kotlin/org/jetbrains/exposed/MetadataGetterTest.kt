@@ -3,6 +3,7 @@ package org.jetbrains.exposed
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
+import java.nio.file.Path
 import java.nio.file.Paths
 
 class MetadataGetterTest {
@@ -75,8 +76,23 @@ class MetadataGetterTest {
         checkDatabaseMetadataAgainstFile("textpk.db", "sqlite", "TextPk.kt")
     }
 
+    private fun h2TypesSetUp(h2FilePath: Path) {
+        val dbFile = Paths.get("src", "test", "resources", "databases", h2FilePath.toString()).toFile()
+        dbFile.copyTo(Paths.get(dbFile.parent, "copy.db.mv.db").toFile(), overwrite = true)
+    }
+
+    private fun h2TypesTearDown(h2FilePath: Path) {
+        val dbFile = Paths.get("src", "test", "resources", "databases", h2FilePath.toString()).toFile()
+        val copyFile = Paths.get(dbFile.parent, "copy.db.mv.db").toFile()
+        copyFile.copyTo(dbFile, overwrite = true)
+        copyFile.delete()
+    }
+
     private fun h2TypesTest(tableName: String, exposedTableFilename: String) {
+        val path = Paths.get("vartypes_h2", "h2vartypes.db.mv.db")
+        h2TypesSetUp(path)
         checkDatabaseMetadataAgainstFile("vartypes_h2/h2vartypes.db", "h2:file", exposedTableFilename, tableName, "vartypes_h2")
+        h2TypesTearDown(path)
     }
 
     @Test
@@ -141,7 +157,10 @@ class MetadataGetterTest {
     }
 
     private fun psqlTypesTest(tableName: String, exposedTableFilename: String) {
+        val path = Paths.get("vartypes_psql", "h2_psql_vartypes.db.mv.db")
+        h2TypesSetUp(path)
         checkDatabaseMetadataAgainstFile("vartypes_psql/h2_psql_vartypes.db", "h2:file", exposedTableFilename, tableName, "vartypes_psql", "PostgreSQL")
+        h2TypesTearDown(path)
     }
 
     @Test
