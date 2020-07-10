@@ -70,10 +70,10 @@ class MetadataGetterTest {
         checkDatabaseMetadataAgainstFile("idpk.db", "sqlite", "IdPk.kt")
     }
 
-    /*@Test
+    @Test
     fun textIdTableTest() {
         checkDatabaseMetadataAgainstFile("textpk.db", "sqlite", "TextPk.kt")
-    }*/
+    }
 
     private fun h2TypesTest(tableName: String, exposedTableFilename: String) {
         checkDatabaseMetadataAgainstFile("vartypes_h2/h2vartypes.db", "h2:file", exposedTableFilename, tableName, "vartypes_h2")

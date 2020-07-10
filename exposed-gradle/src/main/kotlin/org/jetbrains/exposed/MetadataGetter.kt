@@ -3,10 +3,7 @@ package org.jetbrains.exposed
 import com.squareup.kotlinpoet.*
 import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
 import org.apache.commons.text.CaseUtils
-import org.jetbrains.exposed.dao.id.IdTable
-import org.jetbrains.exposed.dao.id.IntIdTable
-import org.jetbrains.exposed.dao.id.LongIdTable
-import org.jetbrains.exposed.dao.id.UUIDTable
+import org.jetbrains.exposed.dao.id.*
 import org.jetbrains.exposed.sql.statements.api.ExposedBlob
 import org.slf4j.LoggerFactory
 import schemacrawler.schema.Column
@@ -27,6 +24,8 @@ class MetadataUnsupportedTypeException(msg: String) : Exception(msg)
 private val logger = LoggerFactory.getLogger("MetadataGetterLogger")
 
 private val numericArgumentsPattern = Pattern.compile("\\(([0-9]+([, ]*[0-9])*)\\)")
+
+private const val exposedPackageName = "org.jetbrains.exposed.sql"
 
 // using the Table class from schemacrawler for now
 // TODO parameters should include host, port
@@ -63,23 +62,24 @@ private fun getTableName(table: Table) = table.name.toLowerCase()
 
 private fun generateUnsupportedTypeErrorMessage(column: Column) = "Unable to map column ${column.name} of type ${column.columnDataType.fullName} to an Exposed column object"
 
-private fun generatePropertyForColumn(column: Column): PropertySpec {
-    val packageName = "org.jetbrains.exposed.sql"
-    val columnVariableName = getPropertyNameForColumn(column)
+private fun columnInitializerCodeBlock(columnName: String, packageName: String, functionName: String, vararg arguments: Any): CodeBlock =
+        if (arguments.isEmpty()) {
+            CodeBlock.of("%M(\"$columnName\")", MemberName(packageName, functionName))
+        } else {
+            CodeBlock.of("%M(\"$columnName\", ${arguments.joinToString(", ")})", MemberName(packageName, functionName))
+        }
+
+
+private data class ColumnDefinition(val columnKClass: KClass<*>, val columnInitializationBlock: CodeBlock)
+
+private fun generateColumnDefinition(column: Column): ColumnDefinition {
     val columnName = getColumnName(column)
 
     var columnInitializerBlock: CodeBlock? = null
     var columnType: KClass<*>? = null
 
-    fun columnInitializerCodeBlock(functionName: String, vararg arguments: Any): CodeBlock =
-            if (arguments.isEmpty()) {
-                CodeBlock.of("%M(\"$columnName\")", MemberName(packageName, functionName))
-            } else {
-                CodeBlock.of("%M(\"$columnName\", ${arguments.joinToString(", ")})", MemberName(packageName, functionName))
-            }
-
     fun initializeColumnParameters(columnTypeClass: KClass<*>, functionName: String, vararg arguments: Any) {
-        columnInitializerBlock = columnInitializerCodeBlock(functionName, *arguments)
+        columnInitializerBlock = columnInitializerCodeBlock(columnName, exposedPackageName, functionName, *arguments)
         columnType = columnTypeClass
     }
 
@@ -147,9 +147,17 @@ private fun generatePropertyForColumn(column: Column): PropertySpec {
         columnInitializerBlock = columnInitializerBlock!!.toBuilder().add(".autoIncrement()").build()
     }
 
-    return PropertySpec.builder(columnVariableName, org.jetbrains.exposed.sql.Column::class.parameterizedBy(columnType!!))
-            .initializer(columnInitializerBlock!!)
-            .build()
+    return ColumnDefinition(columnType!!, columnInitializerBlock!!)
+}
+
+private fun generatePropertyForColumn(column: Column): PropertySpec {
+    val columnVariableName = getPropertyNameForColumn(column)
+    val columnDefinition = generateColumnDefinition(column)
+
+    return PropertySpec.builder(
+            columnVariableName,
+            org.jetbrains.exposed.sql.Column::class.parameterizedBy(columnDefinition.columnKClass)
+    ).initializer(columnDefinition.columnInitializationBlock).build()
 }
 
 private fun generateExposedTable(sqlTable: Table): TypeSpec {
@@ -171,14 +179,19 @@ private fun generateExposedTable(sqlTable: Table): TypeSpec {
     if (idColumn != null) {
         if (superclass == IdTable::class) {
             tableObject.superclass(superclass.parameterizedBy(idColumn.columnDataType.typeMappedClass.kotlin))
+            tableObject.addSuperclassConstructorParameter(
+                    "%S",
+                    tableName
+            )
         } else {
             tableObject.superclass(superclass)
+            tableObject.addSuperclassConstructorParameter(
+                    "%S, %S",
+                    tableName,
+                    getColumnName(idColumn) // to specify the id column name, which might not be "id"
+            )
         }
-        tableObject.addSuperclassConstructorParameter(
-                "%S, %S",
-                tableName,
-                getColumnName(idColumn) // to specify the id column name, which might not be "id"
-        )
+
     } else {
         tableObject.superclass(superclass)
         tableObject.addSuperclassConstructorParameter(
@@ -188,6 +201,19 @@ private fun generateExposedTable(sqlTable: Table): TypeSpec {
     }
     for (column in sqlTable.columns) {
         if (column == idColumn) {
+            if (superclass == IdTable::class) {
+                val columnDefinition = generateColumnDefinition(column)
+                tableObject.addProperty(PropertySpec.builder("id", org.jetbrains.exposed.sql.Column::class.asClassName()
+                        .parameterizedBy(EntityID::class.parameterizedBy(columnDefinition.columnKClass)))
+                        .addModifiers(KModifier.OVERRIDE)
+                        .getter(FunSpec.getterBuilder()
+                                .addCode(CodeBlock.of("return "))
+                                .addCode(columnDefinition.columnInitializationBlock)
+                                .addCode(".%M()", MemberName(exposedPackageName, "entityId"))
+                                .build()
+                        )
+                        .build())
+            }
             continue
         }
         try {
@@ -220,5 +246,4 @@ fun generateExposedTablesForDatabase(
 
     return fileSpec.build()
 }
-
 
