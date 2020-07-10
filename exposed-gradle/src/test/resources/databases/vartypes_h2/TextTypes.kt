@@ -1,3 +1,7 @@
+package databases.vartypes_h2
+
+import org.jetbrains.exposed.sql.*
+
 object TextTypes : Table("text_types") {
     val t1: Column<String> = text("t1")
     val t2: Column<String> = text("t2")

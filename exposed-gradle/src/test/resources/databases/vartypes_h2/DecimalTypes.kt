@@ -1,3 +1,8 @@
+package databases.vartypes_h2
+
+import org.jetbrains.exposed.sql.*
+import java.math.BigDecimal
+
 object DecimalTypes : Table("decimal_types") {
     val d1: Column<BigDecimal> = decimal("d1", 10, 0)
     val d2: Column<BigDecimal> = decimal("d2", 10, 5)

@@ -1,3 +1,7 @@
+package databases.vartypes_h2
+
+import org.jetbrains.exposed.sql.*
+
 object CharTypes : Table("char_types") {
     val c1: Column<String> = char("c1", 2147483647)
     val c2: Column<String> = char("c2", 5)

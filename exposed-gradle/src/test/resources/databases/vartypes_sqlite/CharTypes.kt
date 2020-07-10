@@ -1,3 +1,7 @@
+package databases.vartypes_sqlite
+
+import org.jetbrains.exposed.sql.*
+
 object CharTypes : Table("char_types") {
     val ch1: Column<String> = char("ch1", 19)
     val ch2: Column<String> = varchar("ch2", 255)

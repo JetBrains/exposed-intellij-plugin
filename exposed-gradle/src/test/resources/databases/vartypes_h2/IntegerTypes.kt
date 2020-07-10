@@ -1,3 +1,7 @@
+package databases.vartypes_h2
+
+import org.jetbrains.exposed.sql.*
+
 object IntegerTypes : Table("integer_types") {
     val i1: Column<Int> = integer("i1")
     val i2: Column<Int> = integer("i2")

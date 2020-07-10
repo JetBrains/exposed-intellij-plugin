@@ -1,3 +1,7 @@
+package databases.vartypes_h2
+
+import org.jetbrains.exposed.sql.*
+
 object VarcharTypes : Table("varchar_types") {
     val c1: Column<String> = varchar("c1", 2147483647)
     val c2: Column<String> = varchar("c2", 5)

@@ -1,3 +1,7 @@
+package databases.vartypes_h2
+
+import org.jetbrains.exposed.sql.*
+
 object DoubleTypes : Table("double_types") {
     val d1: Column<Double> = double("d1")
     val d2: Column<Double> = double("d2")

@@ -1,3 +1,7 @@
+package databases.vartypes_h2
+
+import org.jetbrains.exposed.sql.*
+
 object SmallIntTypes : Table("small_int_types") {
     val t1: Column<Byte> = byte("t1")
     val s1: Column<Short> = short("s1")

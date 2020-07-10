@@ -1,3 +1,7 @@
+package databases
+
+import org.jetbrains.exposed.sql.*
+
 object Testrelation : Table("testrelation") {
     val intColumn: Column<Int> = integer("intcolumn")
     val textColumn: Column<String> = text("textcolumn")

@@ -1,3 +1,7 @@
+package databases.vartypes_sqlite
+
+import org.jetbrains.exposed.sql.*
+
 object FloatingPointTypes : Table("floating_point_types") {
     val f1: Column<Float> = float("f1")
     val f2: Column<Double> = double("f2")

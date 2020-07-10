@@ -1,3 +1,8 @@
+package databases.vartypes_h2
+
+import org.jetbrains.exposed.sql.*
+import org.jetbrains.exposed.sql.statements.api.ExposedBlob
+
 object BinaryTypes : Table("binary_types") {
     val b1: Column<ExposedBlob> = blob("b1")
     val b2: Column<ExposedBlob> = blob("b2")

@@ -1,3 +1,8 @@
+package databases.vartypes_psql
+
+import org.jetbrains.exposed.sql.*
+import java.math.BigDecimal
+
 object NumericTypes : Table("numeric_types") {
     val n1: Column<BigDecimal> = decimal("n1", 65535, 32767)
     val n2: Column<BigDecimal> = decimal("n2", 4, 0)

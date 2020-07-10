@@ -1,3 +1,7 @@
+package databases.vartypes_h2
+
+import org.jetbrains.exposed.sql.*
+
 object BooleanTypes : Table("boolean_types") {
     val b1: Column<Boolean> = bool("b1")
     val b2: Column<Boolean> = bool("b2")

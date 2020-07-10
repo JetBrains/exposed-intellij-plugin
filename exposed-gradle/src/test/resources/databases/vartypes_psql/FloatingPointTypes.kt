@@ -1,3 +1,7 @@
+package databases.vartypes_psql
+
+import org.jetbrains.exposed.sql.*
+
 object FloatingPointTypes : Table("floating_point_types") {
     val f1: Column<Double> = double("f1")
     val f2: Column<Double> = double("f2")
