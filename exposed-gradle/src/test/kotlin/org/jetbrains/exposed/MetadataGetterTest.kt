@@ -16,7 +16,8 @@ class MetadataGetterTest {
             databaseMode: String? = null
     ) {
         val dbMode = if (databaseMode != null) ";MODE=$databaseMode" else ""
-        val fileSpec = generateExposedTablesForDatabase(databaseDriver, "./src/test/resources/databases/$databaseName$dbMode", null, null, tableName)
+        val metadataGetter = MetadataGetter(databaseDriver, "./src/test/resources/databases/$databaseName$dbMode")
+        val fileSpec = metadataGetter.generateExposedTablesForDatabase(tableName)
         val sb = StringBuilder()
         fileSpec.writeTo(sb)
         // TODO potentially check imports and/or packages
@@ -199,4 +200,11 @@ class MetadataGetterTest {
     fun psqlMiscTypesTest() {
         psqlTypesTest("misc_types", "MiscTypes.kt")
     }
+
+    @Test
+    fun h2ColumnReferenceTest() {
+        checkDatabaseMetadataAgainstFile("h2ref.db", "h2:file", "RefTable.kt")
+    }
+
+
 }
