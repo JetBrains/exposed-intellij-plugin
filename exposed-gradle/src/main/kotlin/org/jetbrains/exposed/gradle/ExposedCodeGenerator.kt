@@ -1,17 +1,12 @@
-package org.jetbrains.exposed
+package org.jetbrains.exposed.gradle
 
 import com.squareup.kotlinpoet.*
 import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
-import org.apache.commons.text.CaseUtils
 import org.jetbrains.exposed.dao.id.*
 import org.jetbrains.exposed.sql.statements.api.ExposedBlob
 import org.slf4j.LoggerFactory
 import schemacrawler.schema.Column
 import schemacrawler.schema.Table
-import schemacrawler.schemacrawler.SchemaCrawlerOptionsBuilder
-import schemacrawler.tools.databaseconnector.DatabaseConnectionSource
-import schemacrawler.tools.databaseconnector.SingleUseUserCredentials
-import schemacrawler.utility.SchemaCrawlerUtility
 import java.math.BigDecimal
 import java.sql.Blob
 import java.sql.Clob
@@ -21,78 +16,28 @@ import kotlin.collections.HashMap
 import kotlin.collections.LinkedHashMap
 import kotlin.reflect.KClass
 
-open class MetadataExtractionException(msg: String) : Exception(msg)
-
-class MetadataUnsupportedTypeException(msg: String) : MetadataExtractionException(msg)
-
-class MetadataReferencedColumnNotFoundException(msg: String) : MetadataExtractionException(msg)
-
-// TODO parameters should include host, port
-class MetadataGetter(
-        databaseDriver: String,
-        private val databaseName: String,
-        user: String? = null,
-        password: String? = null
-) {
-    private val dataSource: DatabaseConnectionSource = DatabaseConnectionSource("jdbc:$databaseDriver:$databaseName")
-    init {
-        if (user != null && password != null) {
-            dataSource.userCredentials = SingleUseUserCredentials(user, password)
-        }
-    }
-
-    companion object {
-        private val logger = LoggerFactory.getLogger("MetadataGetterLogger")
-
-        private val numericArgumentsPattern = Pattern.compile("\\(([0-9]+([, ]*[0-9])*)\\)")
-
-        private const val exposedPackageName = "org.jetbrains.exposed.sql"
-    }
+// TODO support schemas
+class ExposedCodeGenerator(private val tables: List<Table>) {
 
     // column name to its property spec
     private val processedColumns: LinkedHashMap<String, PropertySpec> = LinkedHashMap()
     // column name to its parent table spec
     private val columnsToTables: HashMap<String, TypeSpec> = HashMap()
 
-    // using the Table class from schemacrawler for now
-    private fun getTables(): List<Table> {
-        val catalog = SchemaCrawlerUtility.getCatalog(
-                dataSource.get(),
-                SchemaCrawlerOptionsBuilder.builder().toOptions()
-        )
-        return catalog.schemas.flatMap { catalog.getTables(it) }
+
+    private fun generateUnsupportedTypeErrorMessage(column: Column) =
+            "Unable to map column ${column.name} of type ${column.columnDataType.fullName} to an Exposed column object"
+
+    private fun columnInitializerCodeBlock(
+            columnName: String,
+            packageName: String,
+            functionName: String,
+            vararg arguments: Any
+    ): CodeBlock = if (arguments.isEmpty()) {
+        CodeBlock.of("%M(\"$columnName\")", MemberName(packageName, functionName))
+    } else {
+        CodeBlock.of("%M(\"$columnName\", ${arguments.joinToString(", ")})", MemberName(packageName, functionName))
     }
-
-    private fun toCamelCase(str: String, capitalizeFirst: Boolean = false) =
-            CaseUtils.toCamelCase(str, capitalizeFirst, '_')
-
-    // kotlin property names should be in camel case without capitalization
-    private fun getPropertyNameForColumn(column: Column) = when {
-        column.name.contains('_') -> toCamelCase(column.name)
-        column.name.all { it.isUpperCase() } -> column.name.toLowerCase()
-        else -> column.name.decapitalize()
-    }
-
-    // column names should be exactly as in the database; using lowercase for uniformity
-    private fun getColumnName(column: Column) = column.name.toLowerCase()
-
-    private fun getObjectNameForTable(table: Table) = when {
-        table.name.contains('_') -> toCamelCase(table.name, capitalizeFirst = true)
-        table.name.all { it.isUpperCase() } -> table.name.toLowerCase().capitalize()
-        else -> table.name.capitalize()
-    }
-
-    private fun getTableName(table: Table) = table.name.toLowerCase()
-
-    private fun generateUnsupportedTypeErrorMessage(column: Column) = "Unable to map column ${column.name} of type ${column.columnDataType.fullName} to an Exposed column object"
-
-    private fun columnInitializerCodeBlock(columnName: String, packageName: String, functionName: String, vararg arguments: Any): CodeBlock =
-            if (arguments.isEmpty()) {
-                CodeBlock.of("%M(\"$columnName\")", MemberName(packageName, functionName))
-            } else {
-                CodeBlock.of("%M(\"$columnName\", ${arguments.joinToString(", ")})", MemberName(packageName, functionName))
-            }
-
 
     private data class ColumnDefinition(val columnKClass: KClass<*>, val columnInitializationBlock: CodeBlock)
 
@@ -207,7 +152,7 @@ class MetadataGetter(
         val columnVariableName = getPropertyNameForColumn(column)
         val columnDefinition = generateColumnDefinition(column)
 
-        return PropertySpec.builder(
+        return PropertySpec.Companion.builder(
                 columnVariableName,
                 org.jetbrains.exposed.sql.Column::class.parameterizedBy(columnDefinition.columnKClass)
         ).initializer(columnDefinition.columnInitializationBlock).build()
@@ -220,7 +165,7 @@ class MetadataGetter(
             when (idColumn.columnDataType.typeMappedClass) {
                 Integer::class.javaObjectType -> IntIdTable::class
                 Long::class.javaObjectType -> LongIdTable::class
-                else -> if (idColumn.columnDataType.fullName.toLowerCase() == "uuid") UUIDTable::class else IdTable::class
+                else -> if (idColumn.columnDataType.fullName.equals("uuid", ignoreCase = true)) UUIDTable::class else IdTable::class
             }
         } else {
             org.jetbrains.exposed.sql.Table::class
@@ -255,7 +200,7 @@ class MetadataGetter(
         for (column in sqlTable.columns) {
             if (column == idColumn) {
                 val columnDefinition = generateColumnDefinition(column)
-                val columnPropertyBuilder = PropertySpec.builder("id", org.jetbrains.exposed.sql.Column::class.asClassName()
+                val columnPropertyBuilder = PropertySpec.Companion.builder("id", org.jetbrains.exposed.sql.Column::class.asClassName()
                         .parameterizedBy(EntityID::class.parameterizedBy(columnDefinition.columnKClass)))
                 if (superclass == IdTable::class) {
                     val property = columnPropertyBuilder
@@ -293,19 +238,18 @@ class MetadataGetter(
     }
 
 
-    fun generateExposedTablesForDatabase(
-            tableName: String? = null
-    ): FileSpec {
-        val fileSpec = FileSpec.builder("", "${toCamelCase(databaseName, capitalizeFirst = true)}.kt")
-        val tables = getTables()
-        for (table in tables) {
-            if (tableName != null && table.name.toLowerCase() != tableName.toLowerCase()) {
-                continue
-            }
-            fileSpec.addType(generateExposedTable(table))
-        }
+    fun generateExposedTables(databaseName: String): FileSpec {
+        val fileSpec = FileSpec.builder("", "${databaseName.toCamelCase(true)}.kt")
+        tables.forEach { fileSpec.addType(generateExposedTable(it)) }
 
         return fileSpec.build()
     }
-}
 
+    companion object {
+        private val logger = LoggerFactory.getLogger("MetadataGetterLogger")
+
+        private val numericArgumentsPattern = Pattern.compile("\\(([0-9]+([, ]*[0-9])*)\\)")
+
+        private val exposedPackageName = org.jetbrains.exposed.sql.Table::class.java.packageName
+    }
+}

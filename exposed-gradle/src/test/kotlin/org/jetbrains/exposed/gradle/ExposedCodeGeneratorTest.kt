@@ -1,4 +1,4 @@
-package org.jetbrains.exposed
+package org.jetbrains.exposed.gradle
 
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -6,7 +6,7 @@ import java.io.File
 import java.nio.file.Path
 import java.nio.file.Paths
 
-class MetadataGetterTest {
+class ExposedCodeGeneratorTest {
     private fun checkDatabaseMetadataAgainstFile(
             databaseName: String,
             databaseDriver: String,
@@ -16,19 +16,34 @@ class MetadataGetterTest {
             databaseMode: String? = null
     ) {
         val dbMode = if (databaseMode != null) ";MODE=$databaseMode" else ""
-        val metadataGetter = MetadataGetter(databaseDriver, "./src/test/resources/databases/$databaseName$dbMode")
-        val fileSpec = metadataGetter.generateExposedTablesForDatabase(tableName)
+        val name = if (fileParentPath.isNotBlank()) {
+            "./src/test/resources/databases/$fileParentPath/$databaseName$dbMode"
+        } else {
+            "./src/test/resources/databases/$databaseName$dbMode"
+        }
+        val metadataGetter = MetadataGetter(databaseDriver, name)
+        val tables = metadataGetter.getTables()
+        val exposedCodeGenerator = if (tableName != null) {
+            ExposedCodeGenerator(tables.filter { it.name.equals(tableName, ignoreCase = true) })
+        } else {
+            ExposedCodeGenerator(tables)
+        }
+        val fileSpec = exposedCodeGenerator.generateExposedTables(databaseName)
         val sb = StringBuilder()
         fileSpec.writeTo(sb)
         // TODO potentially check imports and/or packages
-        val lines = sb.splitToSequence("\n").filterNot { it.startsWith("import ") || it.startsWith("package") || it.isBlank() }.toList().map { it.trim() }
+        val lines = sb.splitToSequence("\n").filterNot { it.startsWith("import ") || it.startsWith("package ") || it.isBlank() }.toList().map { it.trim() }
 
         val p = Paths.get("src", "test", "resources", "databases", fileParentPath)
         val expectedLines = File(p.toFile(), testDataFilename).readLines()
-                .filterNot { it.isBlank() || it.startsWith("import") || it.startsWith("package") }
+                .filterKtFileLines()
                 .map { it.trim() }
         assertTrue(lines.size == expectedLines.size)
         lines.forEach { assertTrue(it in expectedLines) }
+    }
+
+    private fun List<String>.filterKtFileLines(): List<String> = this.filterNot {
+        it.isBlank() || it.startsWith("import ") || it.startsWith("package ")
     }
 
     @Test
@@ -37,7 +52,7 @@ class MetadataGetterTest {
     }
 
     private fun sqliteTypesTest(tableName: String, exposedTableFilename: String) {
-        checkDatabaseMetadataAgainstFile("vartypes_sqlite/vartypes.db", "sqlite", exposedTableFilename, tableName, "vartypes_sqlite")
+        checkDatabaseMetadataAgainstFile("vartypes.db", "sqlite", exposedTableFilename, tableName, "vartypes_sqlite")
     }
 
     @Test
@@ -92,7 +107,7 @@ class MetadataGetterTest {
     private fun h2TypesTest(tableName: String, exposedTableFilename: String) {
         val path = Paths.get("vartypes_h2", "h2vartypes.db.mv.db")
         h2TypesSetUp(path)
-        checkDatabaseMetadataAgainstFile("vartypes_h2/h2vartypes.db", "h2:file", exposedTableFilename, tableName, "vartypes_h2")
+        checkDatabaseMetadataAgainstFile("h2vartypes.db", "h2:file", exposedTableFilename, tableName, "vartypes_h2")
         h2TypesTearDown(path)
     }
 
@@ -160,7 +175,14 @@ class MetadataGetterTest {
     private fun psqlTypesTest(tableName: String, exposedTableFilename: String) {
         val path = Paths.get("vartypes_psql", "h2_psql_vartypes.db.mv.db")
         h2TypesSetUp(path)
-        checkDatabaseMetadataAgainstFile("vartypes_psql/h2_psql_vartypes.db", "h2:file", exposedTableFilename, tableName, "vartypes_psql", "PostgreSQL")
+        checkDatabaseMetadataAgainstFile(
+                "h2_psql_vartypes.db",
+                "h2:file",
+                exposedTableFilename,
+                tableName,
+                "vartypes_psql",
+                "PostgreSQL"
+        )
         h2TypesTearDown(path)
     }
 
