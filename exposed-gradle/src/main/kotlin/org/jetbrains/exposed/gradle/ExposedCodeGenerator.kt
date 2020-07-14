@@ -28,7 +28,7 @@ class ExposedCodeGenerator(private val tables: List<Table>) {
     private fun generateUnsupportedTypeErrorMessage(column: Column) =
             "Unable to map column ${column.name} of type ${column.columnDataType.fullName} to an Exposed column object"
 
-    private fun columnInitializerCodeBlock(
+    private fun generateColumnInitializerCodeBlock(
             columnName: String,
             packageName: String,
             functionName: String,
@@ -48,7 +48,7 @@ class ExposedCodeGenerator(private val tables: List<Table>) {
         var columnType: KClass<*>? = null
 
         fun initializeColumnParameters(columnTypeClass: KClass<*>, functionName: String, vararg arguments: Any) {
-            columnInitializerBlock = columnInitializerCodeBlock(columnName, exposedPackageName, functionName, *arguments)
+            columnInitializerBlock = generateColumnInitializerCodeBlock(columnName, exposedPackageName, functionName, *arguments)
             columnType = columnTypeClass
         }
 
@@ -125,20 +125,21 @@ class ExposedCodeGenerator(private val tables: List<Table>) {
                             "Column ${column.referencedColumn.fullName} referenced by ${column.fullName} not found."
                     )
             val referencedColumnTable = columnsToTables[column.referencedColumn.fullName]
-            columnInitializerBlock = if (column.parent == column.referencedColumn.parent) {
-                columnInitializerBlock!!.append(CodeBlock.of(
+            val blockToAppend = if (column.parent == column.referencedColumn.parent) {
+                CodeBlock.of(
                         ".%M(%N)",
                         MemberName(exposedPackageName, "references"),
                         referencedColumnProperty
-                ))
+                )
             } else {
-                columnInitializerBlock!!.append(CodeBlock.of(
+                CodeBlock.of(
                         ".%M(%N.%N)",
                         MemberName(exposedPackageName, "references"),
                         referencedColumnTable, // should be not null
                         referencedColumnProperty
-                ))
+                )
             }
+            columnInitializerBlock = columnInitializerBlock!!.append(blockToAppend)
         }
 
         return ColumnDefinition(columnType!!, columnInitializerBlock!!)
