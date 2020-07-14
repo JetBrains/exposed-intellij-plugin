@@ -73,7 +73,11 @@ class ExposedCodeGenerator(private val tables: List<Table>) {
                 val name = column.columnDataType.fullName.toLowerCase()
                 val matcher = numericArgumentsPattern.matcher(name)
                 if (matcher.find() && (name.contains("decimal") || name.contains("numeric"))) {
-                    initializeColumnParameters(BigDecimal::class, "decimal", matcher.group(1))
+                    initializeColumnParameters(
+                            BigDecimal::class,
+                            "decimal",
+                            *matcher.group(1).split(",").map { it.trim() }.toTypedArray()
+                    )
                 } else {
                     initializeColumnParameters(Double::class, "double")
                 }
@@ -257,7 +261,7 @@ class ExposedCodeGenerator(private val tables: List<Table>) {
     companion object {
         private val logger = LoggerFactory.getLogger("MetadataGetterLogger")
 
-        private val numericArgumentsPattern = Pattern.compile("\\(([0-9]+([, ]*[0-9])*)\\)")
+        private val numericArgumentsPattern = Pattern.compile("\\((([0-9])+([, ]*[0-9])*)\\)")
 
         private val exposedPackageName = org.jetbrains.exposed.sql.Table::class.java.packageName
         private val exposedDateTimePackageName = JavaLocalDateColumnType::class.java.packageName
