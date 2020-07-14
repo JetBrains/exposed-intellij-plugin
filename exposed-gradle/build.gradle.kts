@@ -6,6 +6,7 @@ plugins {
 repositories {
     mavenCentral()
     jcenter()
+    maven { url = uri("https://jitpack.io") }
 }
 
 dependencies {
@@ -21,7 +22,8 @@ dependencies {
     implementation("org.apache.commons", "commons-text", "1.8")
     implementation("com.squareup:kotlinpoet:1.6.0")
     implementation("org.slf4j:slf4j-api:1.7.30")
-    implementation( "com.h2database", "h2","1.4.199")
+    implementation("com.h2database", "h2","1.4.199")
+    implementation("com.github.Erdos-Graph-Framework:Erdos:v1.0")
 //    implementation( "ch.qos.logback", "logback-classic", "1.2.3")
 }
 

@@ -26,7 +26,7 @@ class MetadataGetter(
                 dataSource.get(),
                 SchemaCrawlerOptionsBuilder.builder().toOptions()
         )
-        return catalog.schemas.flatMap { catalog.getTables(it) }
+        return sortTablesByDependencies(catalog.schemas.flatMap { catalog.getTables(it) })
     }
 }
 
