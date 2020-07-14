@@ -3,6 +3,7 @@ package org.jetbrains.exposed.gradle
 import com.squareup.kotlinpoet.*
 import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
 import org.jetbrains.exposed.dao.id.*
+import org.jetbrains.exposed.sql.`java-time`.JavaLocalDateColumnType
 import org.jetbrains.exposed.sql.statements.api.ExposedBlob
 import org.slf4j.LoggerFactory
 import schemacrawler.schema.Column
@@ -10,6 +11,8 @@ import schemacrawler.schema.Table
 import java.math.BigDecimal
 import java.sql.Blob
 import java.sql.Clob
+import java.time.LocalDate
+import java.time.LocalDateTime
 import java.util.*
 import java.util.regex.Pattern
 import kotlin.collections.HashMap
@@ -47,8 +50,8 @@ class ExposedCodeGenerator(private val tables: List<Table>) {
         var columnInitializerBlock: CodeBlock? = null
         var columnType: KClass<*>? = null
 
-        fun initializeColumnParameters(columnTypeClass: KClass<*>, functionName: String, vararg arguments: Any) {
-            columnInitializerBlock = generateColumnInitializerCodeBlock(columnName, exposedPackageName, functionName, *arguments)
+        fun initializeColumnParameters(columnTypeClass: KClass<*>, functionName: String, vararg arguments: Any, packageName: String = exposedPackageName) {
+            columnInitializerBlock = generateColumnInitializerCodeBlock(columnName, packageName, functionName, *arguments)
             columnType = columnTypeClass
         }
 
@@ -84,6 +87,11 @@ class ExposedCodeGenerator(private val tables: List<Table>) {
                     name.contains("varchar") || name.contains("varying") -> initializeColumnParameters(String::class, "varchar", size)
                     name.contains("char") -> initializeColumnParameters(String::class, "char", size)
                     name.contains("text") -> initializeColumnParameters(String::class, "text")
+                    name.contains("time") ->
+                        initializeColumnParameters(LocalDateTime::class, "datetime", packageName = exposedDateTimePackageName)
+                    name.contains("date") ->
+                        initializeColumnParameters(LocalDate::class, "date", packageName = exposedDateTimePackageName)
+                    // TODO timestamp, duration
                     else -> throw MetadataUnsupportedTypeException(generateUnsupportedTypeErrorMessage(column))
                 }
             }
@@ -252,5 +260,6 @@ class ExposedCodeGenerator(private val tables: List<Table>) {
         private val numericArgumentsPattern = Pattern.compile("\\(([0-9]+([, ]*[0-9])*)\\)")
 
         private val exposedPackageName = org.jetbrains.exposed.sql.Table::class.java.packageName
+        private val exposedDateTimePackageName = JavaLocalDateColumnType::class.java.packageName
     }
 }

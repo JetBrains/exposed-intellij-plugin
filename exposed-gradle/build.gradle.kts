@@ -15,6 +15,7 @@ dependencies {
     implementation("org.jetbrains.exposed", "exposed-core", "0.24.1")
     implementation("org.jetbrains.exposed", "exposed-dao", "0.24.1")
     implementation("org.jetbrains.exposed", "exposed-jdbc", "0.24.1")
+    implementation("org.jetbrains.exposed", "exposed-java-time", "0.24.1")
     implementation("org.postgresql:postgresql:42.2.2")
     implementation("us.fatehi:schemacrawler:16.9.2")
     implementation("org.xerial:sqlite-jdbc:3.32.3")
