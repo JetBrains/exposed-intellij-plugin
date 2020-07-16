@@ -37,6 +37,7 @@ class ExposedCodeGenerator(private val tables: List<Table>) {
             functionName: String,
             vararg arguments: Any
     ): CodeBlock = if (arguments.isEmpty()) {
+        // TODO fix this
         CodeBlock.of("%M(\"$columnName\")", MemberName(packageName, functionName))
     } else {
         CodeBlock.of("%M(\"$columnName\", ${arguments.joinToString(", ")})", MemberName(packageName, functionName))
@@ -50,7 +51,7 @@ class ExposedCodeGenerator(private val tables: List<Table>) {
         var columnInitializerBlock: CodeBlock? = null
         var columnType: KClass<*>? = null
 
-        fun initializeColumnParameters(columnTypeClass: KClass<*>, functionName: String, vararg arguments: Any, packageName: String = exposedPackageName) {
+        fun initializeColumnParameters(columnTypeClass: KClass<*>, functionName: String, vararg arguments: Any, packageName: String = "") {
             columnInitializerBlock = generateColumnInitializerCodeBlock(columnName, packageName, functionName, *arguments)
             columnType = columnTypeClass
         }
@@ -58,7 +59,7 @@ class ExposedCodeGenerator(private val tables: List<Table>) {
 
         when (column.columnDataType.typeMappedClass) {
             Integer::class.javaObjectType -> {
-                when (column.columnDataType.fullName.toLowerCase()) {
+                when (column.columnDataType.name.toLowerCase()) {
                     "tinyint" -> initializeColumnParameters(Byte::class, "byte")
                     "smallint", "int2" -> initializeColumnParameters(Short::class, "short")
                     "int8" -> initializeColumnParameters(Long::class, "long")
@@ -70,7 +71,7 @@ class ExposedCodeGenerator(private val tables: List<Table>) {
                 initializeColumnParameters(BigDecimal::class, "decimal", column.size, column.decimalDigits)
             Float::class.javaObjectType-> initializeColumnParameters(Float::class, "float")
             Double::class.javaObjectType -> {
-                val name = column.columnDataType.fullName.toLowerCase()
+                val name = column.columnDataType.name.toLowerCase()
                 val matcher = numericArgumentsPattern.matcher(name)
                 if (matcher.find() && (name.contains("decimal") || name.contains("numeric"))) {
                     initializeColumnParameters(
@@ -84,7 +85,7 @@ class ExposedCodeGenerator(private val tables: List<Table>) {
             }
             Boolean::class.javaObjectType -> initializeColumnParameters(Boolean::class, "bool")
             String::class.java -> {
-                val name = column.columnDataType.fullName.toLowerCase()
+                val name = column.columnDataType.name.toLowerCase()
                 val matcher = numericArgumentsPattern.matcher(name)
                 val size = if (matcher.find()) matcher.group(1).takeWhile { it.isDigit() }.toInt() else column.size
                 when {
@@ -105,7 +106,7 @@ class ExposedCodeGenerator(private val tables: List<Table>) {
                 initializeColumnParameters(String::class, "text")
             }
             Object::class.javaObjectType -> {
-                when (column.columnDataType.fullName.toLowerCase()) {
+                when (column.columnDataType.name.toLowerCase()) {
                     "uuid" -> initializeColumnParameters(UUID::class, "uuid")
                     else -> throw MetadataUnsupportedTypeException(generateUnsupportedTypeErrorMessage(column))
                 }
@@ -113,11 +114,14 @@ class ExposedCodeGenerator(private val tables: List<Table>) {
             Blob::class.javaObjectType -> initializeColumnParameters(ExposedBlob::class, "blob")
             UUID::class.javaObjectType -> initializeColumnParameters(UUID::class, "uuid")
             else -> {
-                val name = column.columnDataType.fullName.toLowerCase()
+                val name = column.columnDataType.name.toLowerCase()
                 when {
                     name.contains("uuid") -> initializeColumnParameters(UUID::class, "uuid")
                     // can be 'varbinary'
-                    name.contains("binary") || name.contains("bytea") -> initializeColumnParameters(ByteArray::class, "binary", column.size)
+                    name.contains("binary") || name.contains("bytea") -> {
+                        val size = if (column.size > 0) column.size else MaxSize.POSTGRESQL_MAX_BINARY_SIZE
+                        initializeColumnParameters(ByteArray::class, "binary", size)
+                    }
                 }
             }
         }
@@ -180,7 +184,7 @@ class ExposedCodeGenerator(private val tables: List<Table>) {
             when (idColumn.columnDataType.typeMappedClass) {
                 Integer::class.javaObjectType -> IntIdTable::class
                 Long::class.javaObjectType -> LongIdTable::class
-                else -> if (idColumn.columnDataType.fullName.equals("uuid", ignoreCase = true)) UUIDTable::class else IdTable::class
+                else -> if (idColumn.columnDataType.name.equals("uuid", ignoreCase = true)) UUIDTable::class else IdTable::class
             }
         } else {
             org.jetbrains.exposed.sql.Table::class

@@ -1,9 +1,6 @@
 package org.jetbrains.exposed.gradle
 
-import org.jetbrains.exposed.gradle.databases.CharTypes
-import org.jetbrains.exposed.gradle.databases.IntegerTypes
-import org.jetbrains.exposed.gradle.databases.MiscTypes
-import org.jetbrains.exposed.gradle.databases.NumericTypes
+import org.jetbrains.exposed.gradle.databases.*
 import org.jetbrains.exposed.gradle.tests.DatabaseTestsBase
 import org.jetbrains.exposed.gradle.tests.TestDB
 import org.jetbrains.exposed.sql.SchemaUtils
@@ -276,11 +273,38 @@ class ExposedCodeGeneratorFromExposedTest : DatabaseTestsBase() {
 
     private fun List<String>.filterImportsOnly() = filter { it.startsWith("import ") }
 
-    private fun testOnFile(testDataFilename: String, table: Table, tableName: String? = null) {
-        //val dbList = listOf(TestDB.H2, TestDB.SQLITE)
-        val dbList = listOf(TestDB.SQLITE)
+    private val fullDBList = listOf(
+            TestDB.H2,
+            TestDB.SQLITE,
+            TestDB.POSTGRESQL,
+            TestDB.MYSQL,
+            TestDB.ORACLE,
+            TestDB.H2_MYSQL,
+            TestDB.MARIADB,
+            TestDB.POSTGRESQLNG
+    )
 
-        for (db in dbList) {
+    private fun testOnFile(
+            testDataFilename: String,
+            table: Table,
+            tableName: String? = null,
+            excludedDbList: List<TestDB> = emptyList()
+    ) {
+        val dbList = listOf(
+                TestDB.H2,
+                TestDB.SQLITE,
+                TestDB.POSTGRESQL,
+//                TestDB.MYSQL,
+                TestDB.ORACLE,
+                TestDB.H2_MYSQL,
+                TestDB.MARIADB,
+                TestDB.POSTGRESQLNG
+        )
+
+        // TODO replace with full db list as a separate variable later
+        val l = dbList - excludedDbList
+
+        for (db in l) {
             try {
                 withDb(db) {
                     SchemaUtils.drop(table)
@@ -296,7 +320,22 @@ class ExposedCodeGeneratorFromExposedTest : DatabaseTestsBase() {
 
     @Test
     fun integerTypes() {
-        testOnFile("IntegerTypes.kt", IntegerTypes, "integer_types")
+        testOnFile(
+                "IntegerTypes.kt",
+                IntegerTypes,
+                "integer_types",
+                excludedDbList = listOf(TestDB.POSTGRESQL, TestDB.POSTGRESQLNG)
+        )
+    }
+
+    @Test
+    fun integerTypesPostgres() {
+        testOnFile(
+                "postgresql/IntegerTypes.kt",
+                IntegerTypes,
+                "integer_types",
+                excludedDbList = fullDBList - listOf(TestDB.POSTGRESQL, TestDB.POSTGRESQLNG)
+        )
     }
 
     @Test
@@ -318,6 +357,21 @@ class ExposedCodeGeneratorFromExposedTest : DatabaseTestsBase() {
     // The length of the Binary column is missing.
     @Test
     fun miscTypes() {
-        testOnFile("MiscTypes.kt", MiscTypes, "misc_types")
+        testOnFile(
+                "MiscTypes.kt",
+                MiscTypes,
+                "misc_types",
+                excludedDbList = listOf(TestDB.POSTGRESQL, TestDB.POSTGRESQLNG)
+        )
+    }
+
+    @Test
+    fun miscTypesPostgres() {
+        testOnFile(
+                "postgresql/MiscTypes.kt",
+                MiscTypes,
+                "misc_types",
+                excludedDbList = fullDBList - listOf(TestDB.POSTGRESQL, TestDB.POSTGRESQLNG)
+        )
     }
 }

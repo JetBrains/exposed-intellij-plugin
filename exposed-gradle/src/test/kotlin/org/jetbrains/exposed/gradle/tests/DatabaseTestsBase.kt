@@ -1,22 +1,52 @@
 package org.jetbrains.exposed.gradle.tests
 
+import com.opentable.db.postgres.embedded.EmbeddedPostgres
 import org.h2.engine.Mode
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.transactions.transactionManager
+import org.testcontainers.containers.MySQLContainer
 import java.sql.Connection
 import java.util.*
 import kotlin.concurrent.thread
 
-// copied from Exposed tests with slight alterations bc it wasn't compiling immediately
-
 enum class TestDB(val connection: () -> String, val driver: String, val user: String = "root", val pass: String = "",
                   val beforeConnection: () -> Unit = {}, val afterTestFinished: () -> Unit = {}, var db: Database? = null) {
-    H2({"jdbc:h2:mem:regular;DB_CLOSE_DELAY=-1;"}, "org.h2.Driver"),
-    H2_MYSQL({"jdbc:h2:mem:mysql;MODE=MySQL;DB_CLOSE_DELAY=-1"}, "org.h2.Driver", beforeConnection = {
+    H2({ println("h2")
+        "jdbc:h2:mem:regular;DB_CLOSE_DELAY=-1;"}, "org.h2.Driver"),
+    H2_MYSQL({
+        println("h2_mysql")
+        "jdbc:h2:mem:mysql;MODE=MySQL;DB_CLOSE_DELAY=-1"}, "org.h2.Driver", beforeConnection = {
         Mode.getInstance("MySQL").convertInsertNullToZero = false
     }),
-    SQLITE({"jdbc:sqlite:file:test?mode=memory&cache=shared"}, "org.sqlite.JDBC"),
+    SQLITE({
+        println("sqlite")
+        "jdbc:sqlite:file:test?mode=memory&cache=shared"}, "org.sqlite.JDBC"),
+    MYSQL(
+            connection = {
+                println("mysql")
+                if (runTestContainersMySQL()) {
+                    "${mySQLProcess.jdbcUrl}?createDatabaseIfNotExist=true&characterEncoding=UTF-8&useSSL=false"
+                } else {
+                    val host = System.getProperty("exposed.test.mysql.host") ?: System.getProperty("exposed.test.mysql8.host")
+                    val port = System.getProperty("exposed.test.mysql.port") ?: System.getProperty("exposed.test.mysql8.port")
+                    host.let { dockerHost ->
+                        "jdbc:mysql://$dockerHost:$port/testdb?useSSL=false&characterEncoding=UTF-8"
+                    }
+                }
+            },
+            user = "root",
+            pass = if (runTestContainersMySQL()) "test" else "",
+            driver = "com.mysql.jdbc.Driver",
+            beforeConnection = { if (runTestContainersMySQL()) mySQLProcess },
+            afterTestFinished = { if (runTestContainersMySQL()) mySQLProcess.close() }
+    ),
+    POSTGRESQL({
+        println("postgres")
+        "jdbc:postgresql://localhost:12346/template1?user=postgres&password=&lc_messages=en_US.UTF-8"}, "org.postgresql.Driver",
+            beforeConnection = { postgresSQLProcess }, afterTestFinished = { postgresSQLProcess.close() }),
+    POSTGRESQLNG({"jdbc:pgsql://localhost:12346/template1?user=postgres&password="}, "com.impossibl.postgres.jdbc.PGDriver",
+            user = "postgres", beforeConnection = { postgresSQLProcess }, afterTestFinished = { postgresSQLProcess.close() }),
     ORACLE(driver = "oracle.jdbc.OracleDriver", user = "C##ExposedTest", pass = "12345",
             connection = {"jdbc:oracle:thin:@//${System.getProperty("exposed.test.oracle.host", "localhost")}" +
                     ":${System.getProperty("exposed.test.oracle.port", "1521")}/xe"},
@@ -60,9 +90,28 @@ enum class TestDB(val connection: () -> String, val driver: String, val user: St
 
 private val registeredOnShutdown = HashSet<TestDB>()
 
+private val postgresSQLProcess by lazy {
+    EmbeddedPostgres.builder()
+            .setPgBinaryResolver{ system, _ ->
+                EmbeddedPostgres::class.java.getResourceAsStream("/postgresql-$system-x86_64.txz")
+            }
+            .setPort(12346).start()
+}
+
+// MySQLContainer has to be extended, otherwise it leads to Kotlin compiler issues: https://github.com/testcontainers/testcontainers-java/issues/318
+internal class SpecifiedMySQLContainer(val image: String) : MySQLContainer<SpecifiedMySQLContainer>(image)
+
+private val mySQLProcess by lazy {
+    SpecifiedMySQLContainer(image = "mysql:5")
+            .withDatabaseName("testdb")
+            .withEnv("MYSQL_ROOT_PASSWORD", "test")
+            .withExposedPorts().apply {
+                start()
+            }
+}
 
 private fun runTestContainersMySQL(): Boolean =
-    (System.getProperty("exposed.test.mysql.host") ?: System.getProperty("exposed.test.mysql8.host")).isNullOrBlank()
+        (System.getProperty("exposed.test.mysql.host") ?: System.getProperty("exposed.test.mysql8.host")).isNullOrBlank()
 
 abstract class DatabaseTestsBase {
     init {
