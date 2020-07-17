@@ -12,19 +12,13 @@ import kotlin.concurrent.thread
 
 enum class TestDB(val connection: () -> String, val driver: String, val user: String = "root", val pass: String = "",
                   val beforeConnection: () -> Unit = {}, val afterTestFinished: () -> Unit = {}, var db: Database? = null) {
-    H2({ println("h2")
-        "jdbc:h2:mem:regular;DB_CLOSE_DELAY=-1;"}, "org.h2.Driver"),
-    H2_MYSQL({
-        println("h2_mysql")
-        "jdbc:h2:mem:mysql;MODE=MySQL;DB_CLOSE_DELAY=-1"}, "org.h2.Driver", beforeConnection = {
+    H2({"jdbc:h2:mem:regular;DB_CLOSE_DELAY=-1;"}, "org.h2.Driver"),
+    H2_MYSQL({"jdbc:h2:mem:mysql;MODE=MySQL;DB_CLOSE_DELAY=-1"}, "org.h2.Driver", beforeConnection = {
         Mode.getInstance("MySQL").convertInsertNullToZero = false
     }),
-    SQLITE({
-        println("sqlite")
-        "jdbc:sqlite:file:test?mode=memory&cache=shared"}, "org.sqlite.JDBC"),
+    SQLITE({"jdbc:sqlite:file:test?mode=memory&cache=shared"}, "org.sqlite.JDBC"),
     MYSQL(
             connection = {
-                println("mysql")
                 if (runTestContainersMySQL()) {
                     "${mySQLProcess.jdbcUrl}?createDatabaseIfNotExist=true&characterEncoding=UTF-8&useSSL=false"
                 } else {
@@ -41,9 +35,7 @@ enum class TestDB(val connection: () -> String, val driver: String, val user: St
             beforeConnection = { if (runTestContainersMySQL()) mySQLProcess },
             afterTestFinished = { if (runTestContainersMySQL()) mySQLProcess.close() }
     ),
-    POSTGRESQL({
-        println("postgres")
-        "jdbc:postgresql://localhost:12346/template1?user=postgres&password=&lc_messages=en_US.UTF-8"}, "org.postgresql.Driver",
+    POSTGRESQL({"jdbc:postgresql://localhost:12346/template1?user=postgres&password=&lc_messages=en_US.UTF-8"}, "org.postgresql.Driver",
             beforeConnection = { postgresSQLProcess }, afterTestFinished = { postgresSQLProcess.close() }),
     POSTGRESQLNG({"jdbc:pgsql://localhost:12346/template1?user=postgres&password="}, "com.impossibl.postgres.jdbc.PGDriver",
             user = "postgres", beforeConnection = { postgresSQLProcess }, afterTestFinished = { postgresSQLProcess.close() }),

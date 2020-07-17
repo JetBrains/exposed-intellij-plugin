@@ -290,21 +290,9 @@ class ExposedCodeGeneratorFromExposedTest : DatabaseTestsBase() {
             tableName: String? = null,
             excludedDbList: List<TestDB> = emptyList()
     ) {
-        val dbList = listOf(
-                TestDB.H2,
-                TestDB.SQLITE,
-                TestDB.POSTGRESQL,
-//                TestDB.MYSQL,
-                TestDB.ORACLE,
-                TestDB.H2_MYSQL,
-                TestDB.MARIADB,
-                TestDB.POSTGRESQLNG
-        )
+        val dbList = fullDBList - excludedDbList
 
-        // TODO replace with full db list as a separate variable later
-        val l = dbList - excludedDbList
-
-        for (db in l) {
+        for (db in dbList) {
             try {
                 withDb(db) {
                     SchemaUtils.drop(table)
