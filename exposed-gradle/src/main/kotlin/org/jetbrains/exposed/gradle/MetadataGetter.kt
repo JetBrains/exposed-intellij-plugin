@@ -7,14 +7,18 @@ import schemacrawler.tools.databaseconnector.SingleUseUserCredentials
 import schemacrawler.utility.SchemaCrawlerUtility
 
 // TODO parameters should include host, port
-class MetadataGetter(
-        databaseDriver: String,
-        databaseName: String,
-        user: String? = null,
-        password: String? = null
-) {
-    private val dataSource: DatabaseConnectionSource = DatabaseConnectionSource("jdbc:$databaseDriver:$databaseName")
-    init {
+class MetadataGetter {
+    private val dataSource: DatabaseConnectionSource
+
+    constructor(databaseDriver: String, databaseName: String, user: String? = null, password: String? = null) {
+        dataSource = DatabaseConnectionSource("jdbc:$databaseDriver:$databaseName")
+        if (user != null && password != null) {
+            dataSource.userCredentials = SingleUseUserCredentials(user, password)
+        }
+    }
+
+    constructor(connection: () -> String, user: String? = null, password: String? = null) {
+        dataSource = DatabaseConnectionSource(connection())
         if (user != null && password != null) {
             dataSource.userCredentials = SingleUseUserCredentials(user, password)
         }

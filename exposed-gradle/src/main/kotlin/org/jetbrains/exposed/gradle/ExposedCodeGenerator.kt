@@ -95,6 +95,8 @@ class ExposedCodeGenerator(private val tables: List<Table>) {
                         initializeColumnParameters(LocalDateTime::class, "datetime", packageName = exposedDateTimePackageName)
                     name.contains("date") ->
                         initializeColumnParameters(LocalDate::class, "date", packageName = exposedDateTimePackageName)
+                    name.contains("binary") || name.contains("bytea") ->
+                        initializeColumnParameters(ByteArray::class, "binary", size)
                     // TODO timestamp, duration
                     else -> throw MetadataUnsupportedTypeException(generateUnsupportedTypeErrorMessage(column))
                 }

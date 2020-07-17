@@ -1,10 +1,19 @@
 package org.jetbrains.exposed.gradle
 
+import org.jetbrains.exposed.gradle.databases.CharTypes
+import org.jetbrains.exposed.gradle.databases.IntegerTypes
+import org.jetbrains.exposed.gradle.databases.MiscTypes
+import org.jetbrains.exposed.gradle.databases.NumericTypes
+import org.jetbrains.exposed.gradle.tests.DatabaseTestsBase
+import org.jetbrains.exposed.gradle.tests.TestDB
+import org.jetbrains.exposed.sql.SchemaUtils
+import org.jetbrains.exposed.sql.Table
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
 import java.nio.file.Path
 import java.nio.file.Paths
+
 
 class ExposedCodeGeneratorTest {
     private fun checkDatabaseMetadataAgainstFile(
@@ -227,6 +236,88 @@ class ExposedCodeGeneratorTest {
     fun h2ColumnReferenceTest() {
         checkDatabaseMetadataAgainstFile("h2ref.db", "h2:file", "RefTable.kt")
     }
+}
 
+class ExposedCodeGeneratorFromExposedTest : DatabaseTestsBase() {
+    private fun checkDatabaseMetadataAgainstFile(
+            db: TestDB,
+            testDataFilename: String,
+            tableName: String? = null,
+            fileParentPath: String = ""
+    ) {
+        val metadataGetter = MetadataGetter(db.connection, db.user, db.pass)
+        val tables = metadataGetter.getTables()
+        val exposedCodeGenerator = if (tableName != null) {
+            ExposedCodeGenerator(tables.filter { it.name.equals(tableName, ignoreCase = true) })
+        } else {
+            ExposedCodeGenerator(tables)
+        }
+        val fileSpec = exposedCodeGenerator.generateExposedTables(db.name)
+        val sb = StringBuilder()
+        fileSpec.writeTo(sb)
+        val fileLines = sb.splitToSequence("\n").toList()
+        val lines = fileLines.filterKtFileLines().map { it.trim() }
 
+        val p = Paths.get("src", "test", "kotlin", "org", "jetbrains", "exposed", "gradle", "databases", fileParentPath)
+        val expectedFileLines = File(p.toFile(), testDataFilename).readLines()
+        val expectedLines = expectedFileLines.filterKtFileLines().map { it.trim() }
+
+        val imports = fileLines.filterImportsOnly()
+        val expectedImports = expectedFileLines.filterImportsOnly()
+        expectedImports.forEach { assertTrue(it in imports) }
+
+        assertTrue(lines.size == expectedLines.size)
+        lines.forEach { assertTrue(it in expectedLines) }
+    }
+
+    private fun List<String>.filterKtFileLines() = this.filterNot {
+        it.isBlank() || it.startsWith("import ") || it.startsWith("package ")
+    }
+
+    private fun List<String>.filterImportsOnly() = filter { it.startsWith("import ") }
+
+    private fun testOnFile(testDataFilename: String, table: Table, tableName: String? = null) {
+        //val dbList = listOf(TestDB.H2, TestDB.SQLITE)
+        val dbList = listOf(TestDB.SQLITE)
+
+        for (db in dbList) {
+            try {
+                withDb(db) {
+                    SchemaUtils.drop(table)
+                    SchemaUtils.create(table)
+                    checkDatabaseMetadataAgainstFile(db, testDataFilename, tableName)
+                    SchemaUtils.drop(table)
+                }
+            } catch (e: Exception) {
+                throw AssertionError("Failed on ${db.name}", e)
+            }
+        }
+    }
+
+    @Test
+    fun integerTypes() {
+        testOnFile("IntegerTypes.kt", IntegerTypes, "integer_types")
+    }
+
+    @Test
+    fun numericTypes() {
+        testOnFile("NumericTypes.kt", NumericTypes, "numeric_types")
+    }
+
+    // why does exposed map a float column to double?
+    /*@Test
+    fun floatingPointTypes() {
+        testOnFile("FloatingPointTypes.kt", FloatingPointTypes)
+    }*/
+
+    @Test
+    fun charTypes() {
+        testOnFile("CharTypes.kt", CharTypes, "char_types")
+    }
+
+    // The length of the Binary column is missing.
+    @Test
+    fun miscTypes() {
+        testOnFile("MiscTypes.kt", MiscTypes, "misc_types")
+    }
 }
