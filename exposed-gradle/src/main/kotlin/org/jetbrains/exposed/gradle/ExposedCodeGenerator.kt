@@ -177,65 +177,10 @@ class ExposedCodeGenerator(private val tables: List<Table>) {
         ).initializer(columnDefinition.columnInitializationBlock).build()
     }
 
-    private fun generateExposedTable(sqlTable: Table): TypeSpec {
-        val primaryKeyColumns = sqlTable.columns.filter { it.isPartOfPrimaryKey }
-        val idColumn = if (primaryKeyColumns.size == 1) primaryKeyColumns[0] else null
-        val superclass = if (idColumn != null) {
-            when (idColumn.columnDataType.typeMappedClass) {
-                Integer::class.javaObjectType -> IntIdTable::class
-                Long::class.javaObjectType -> LongIdTable::class
-                else -> if (idColumn.columnDataType.name.equals("uuid", ignoreCase = true)) UUIDTable::class else IdTable::class
-            }
-        } else {
-            org.jetbrains.exposed.sql.Table::class
-        }
-
-        val tableObjectName = getObjectNameForTable(sqlTable)
-        val tableName = getTableName(sqlTable)
-        val tableObject = TypeSpec.objectBuilder(tableObjectName)
-        if (idColumn != null) {
-            if (superclass == IdTable::class) {
-                tableObject.superclass(superclass.parameterizedBy(idColumn.columnDataType.typeMappedClass.kotlin))
-                tableObject.addSuperclassConstructorParameter(
-                        "%S",
-                        tableName
-                )
-            } else {
-                tableObject.superclass(superclass)
-                tableObject.addSuperclassConstructorParameter(
-                        "%S, %S",
-                        tableName,
-                        getColumnName(idColumn) // to specify the id column name, which might not be "id"
-                )
-            }
-
-        } else {
-            tableObject.superclass(superclass)
-            tableObject.addSuperclassConstructorParameter(
-                    "%S",
-                    tableName
-            )
-        }
-        for (column in sqlTable.columns) {
+    // TODO extension method?
+    private fun addColumns(table: Table, tableObject: TypeSpec.Builder, idColumn: Column? = null) {
+        for (column in table.columns) {
             if (column == idColumn) {
-                val columnDefinition = generateColumnDefinition(column)
-                val columnPropertyBuilder = PropertySpec.Companion.builder("id", org.jetbrains.exposed.sql.Column::class.asClassName()
-                        .parameterizedBy(EntityID::class.parameterizedBy(columnDefinition.columnKClass)))
-                if (superclass == IdTable::class) {
-                    val property = columnPropertyBuilder
-                            .addModifiers(KModifier.OVERRIDE)
-                            .getter(FunSpec.getterBuilder()
-                                    .addCode(CodeBlock.of("return "))
-                                    .addCode(columnDefinition.columnInitializationBlock)
-                                    .addCode(".%M()", MemberName(exposedPackageName, "entityId"))
-                                    .build()
-                            )
-                            .build()
-                    tableObject.addProperty(property)
-                    processedColumns[column.fullName] = property
-                } else {
-                    processedColumns[column.fullName] = columnPropertyBuilder.build()
-                }
                 continue
             }
             try {
@@ -247,13 +192,92 @@ class ExposedCodeGenerator(private val tables: List<Table>) {
                 logger.error("Unsupported type", e)
             }
         }
+    }
 
-        val table = tableObject.build()
-        for (column in sqlTable.columns) {
-            columnsToTables[column.fullName] = table
+    private fun generateIdTable(table: Table, idColumn: Column): TypeSpec.Builder {
+        val columnDefinition = generateColumnDefinition(idColumn)
+        val columnPropertyBuilder = PropertySpec.builder("id", org.jetbrains.exposed.sql.Column::class.asClassName()
+                .parameterizedBy(EntityID::class.parameterizedBy(columnDefinition.columnKClass)))
+
+        val superclass = when (idColumn.columnDataType.typeMappedClass) {
+            Integer::class.javaObjectType -> IntIdTable::class
+            Long::class.javaObjectType -> LongIdTable::class
+            else -> if (idColumn.columnDataType.name.equals("uuid", ignoreCase = true)) UUIDTable::class else IdTable::class
         }
 
-        return table
+        val tableObjectName = getObjectNameForTable(table)
+        val tableName = getTableName(table)
+        val tableObjectBuilder = TypeSpec.objectBuilder(tableObjectName)
+
+        if (superclass == IdTable::class) {
+            tableObjectBuilder.superclass(superclass.parameterizedBy(columnDefinition.columnKClass))
+            tableObjectBuilder.addSuperclassConstructorParameter(
+                    "%S",
+                    tableName
+            )
+            val primaryKey = PropertySpec.builder(
+                    "primaryKey",
+                    ClassName("", "PrimaryKey").copy(nullable = true),
+                    KModifier.OVERRIDE
+            )
+                    .delegate(CodeBlock.builder()
+                            .beginControlFlow("lazy")
+                            .add("super.primaryKey ?: PrimaryKey(id)")
+                            .add("\n")
+                            .endControlFlow()
+                            .build()
+                    )
+                    .build()
+            tableObjectBuilder.addProperty(primaryKey)
+            val idProperty = columnPropertyBuilder
+                    .addModifiers(KModifier.OVERRIDE)
+                    .initializer(columnDefinition.columnInitializationBlock
+                            .append(CodeBlock.of(".%M()", MemberName("", "entityId")))
+                    )
+                    .build()
+            tableObjectBuilder.addProperty(idProperty)
+            processedColumns[idColumn.fullName] = idProperty
+        } else {
+            tableObjectBuilder.superclass(superclass)
+            tableObjectBuilder.addSuperclassConstructorParameter(
+                    "%S, %S",
+                    tableName,
+                    getColumnName(idColumn) // to specify the id column name, which might not be "id"
+            )
+            processedColumns[idColumn.fullName] = columnPropertyBuilder.build()
+        }
+
+        addColumns(table, tableObjectBuilder, idColumn)
+        return tableObjectBuilder
+    }
+
+    private fun generateExposedTable(table: Table): TypeSpec {
+        val primaryKeyColumns = table.columns.filter { it.isPartOfPrimaryKey }
+        val idColumn = if (primaryKeyColumns.size == 1) primaryKeyColumns[0] else null
+        val tableObjectBuilder: TypeSpec.Builder
+        if (idColumn != null) {
+            tableObjectBuilder = generateIdTable(table, idColumn)
+        } else {
+            val tableObjectName = getObjectNameForTable(table)
+            val tableName = getTableName(table)
+            tableObjectBuilder = TypeSpec.objectBuilder(tableObjectName)
+
+            val superclass = org.jetbrains.exposed.sql.Table::class
+            tableObjectBuilder.superclass(superclass)
+            tableObjectBuilder.addSuperclassConstructorParameter(
+                    "%S",
+                    tableName
+            )
+
+            addColumns(table, tableObjectBuilder)
+        }
+
+        val tableObject = tableObjectBuilder.build()
+        for (column in table.columns) {
+            columnsToTables[column.fullName] = tableObject
+        }
+
+        return tableObject
     }
 
 
