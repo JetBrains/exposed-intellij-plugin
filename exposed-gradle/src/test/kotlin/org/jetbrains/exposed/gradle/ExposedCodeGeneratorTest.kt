@@ -239,7 +239,7 @@ class ExposedCodeGeneratorTest {
 class ExposedCodeGeneratorFromExposedTest : DatabaseTestsBase() {
     private fun checkDatabaseMetadataAgainstFile(
             db: TestDB,
-            testDataFilename: String,
+            testDataFilepath: Path,
             tableName: String? = null,
             fileParentPath: String = ""
     ) {
@@ -257,7 +257,8 @@ class ExposedCodeGeneratorFromExposedTest : DatabaseTestsBase() {
         val lines = fileLines.filterKtFileLines().map { it.trim() }
 
         val p = Paths.get("src", "test", "kotlin", "org", "jetbrains", "exposed", "gradle", "databases", fileParentPath)
-        val expectedFileLines = File(p.toFile(), testDataFilename).readLines()
+        // this should take care of separators right
+        val expectedFileLines = File(p.toFile(), testDataFilepath.toString()).readLines()
         val expectedLines = expectedFileLines.filterKtFileLines().map { it.trim() }
 
         val imports = fileLines.filterImportsOnly()
@@ -276,47 +277,28 @@ class ExposedCodeGeneratorFromExposedTest : DatabaseTestsBase() {
 
     private fun List<String>.filterImportsOnly() = filter { it.startsWith("import ") }
 
-    private val fullDBList = listOf(
-            TestDB.H2,
-            TestDB.SQLITE,
-            TestDB.POSTGRESQL,
-            TestDB.MYSQL,
-            TestDB.ORACLE,
-            TestDB.H2_MYSQL,
-            TestDB.MARIADB,
-            TestDB.POSTGRESQLNG
-    )
-
     private fun testOnFile(
-            testDataFilename: String,
+            testDataFilepath: Path,
             tables: List<Table>,
             tableName: String? = null,
             excludedDbList: List<TestDB> = emptyList()
     ) {
-        val dbList = fullDBList - excludedDbList
-
-        for (db in dbList) {
-            try {
-                withDb(db) {
-                    for (table in tables) {
-                        SchemaUtils.drop(table)
-                        SchemaUtils.create(table)
-                    }
-                    checkDatabaseMetadataAgainstFile(db, testDataFilename, tableName)
-                    for (table in tables) {
-                        SchemaUtils.drop(table)
-                    }
-                }
-            } catch (e: Exception) {
-                throw AssertionError("Failed on ${db.name}", e)
+        withDb(excludeSettings = excludedDbList, statement = {
+            for (table in tables) {
+                SchemaUtils.drop(table)
+                SchemaUtils.create(table)
             }
-        }
+            checkDatabaseMetadataAgainstFile(it, testDataFilepath, tableName)
+            for (table in tables) {
+                SchemaUtils.drop(table)
+            }
+        })
     }
 
     @Test
     fun integerTypes() {
         testOnFile(
-                "IntegerTypes.kt",
+                Paths.get("IntegerTypes.kt"),
                 listOf(IntegerTypes),
                 "integer_types",
                 excludedDbList = listOf(TestDB.POSTGRESQL, TestDB.POSTGRESQLNG)
@@ -327,34 +309,34 @@ class ExposedCodeGeneratorFromExposedTest : DatabaseTestsBase() {
     // no 'tinyint' in postgres, only 2, 4, or 8 bytes
     fun integerTypesPostgres() {
         testOnFile(
-                "postgresql/IntegerTypes.kt",
+                Paths.get("postgresql", "IntegerTypes.kt"),
                 listOf(IntegerTypes),
                 "integer_types",
-                excludedDbList = fullDBList - listOf(TestDB.POSTGRESQL, TestDB.POSTGRESQLNG)
+                excludedDbList = TestDB.enabledInTests() - listOf(TestDB.POSTGRESQL, TestDB.POSTGRESQLNG)
         )
     }
 
     @Test
     fun numericTypes() {
-        testOnFile("NumericTypes.kt", listOf(NumericTypes), "numeric_types")
+        testOnFile(Paths.get("NumericTypes.kt"), listOf(NumericTypes), "numeric_types")
     }
 
     // why does exposed map a float column to double?
     /*@Test
     fun floatingPointTypes() {
-        testOnFile("FloatingPointTypes.kt", FloatingPointTypes)
+        testOnFile("FloatingPointTypes.kt", listOf(FloatingPointTypes))
     }*/
 
     @Test
     fun charTypes() {
-        testOnFile("CharTypes.kt", listOf(CharTypes), "char_types")
+        testOnFile(Paths.get("CharTypes.kt"), listOf(CharTypes), "char_types")
     }
 
     // The length of the Binary column is missing.
     @Test
     fun miscTypes() {
         testOnFile(
-                "MiscTypes.kt",
+                Paths.get("MiscTypes.kt"),
                 listOf(MiscTypes),
                 "misc_types",
                 excludedDbList = listOf(TestDB.POSTGRESQL, TestDB.POSTGRESQLNG)
@@ -365,19 +347,17 @@ class ExposedCodeGeneratorFromExposedTest : DatabaseTestsBase() {
     // can't specify the length in postgres
     fun miscTypesPostgres() {
         testOnFile(
-                "postgresql/MiscTypes.kt",
+                Paths.get("postgresql", "MiscTypes.kt"),
                 listOf(MiscTypes),
                 "misc_types",
-                excludedDbList = fullDBList - listOf(TestDB.POSTGRESQL, TestDB.POSTGRESQLNG)
+                excludedDbList = TestDB.enabledInTests() - listOf(TestDB.POSTGRESQL, TestDB.POSTGRESQLNG)
         )
     }
 
-    // TODO config tests to exclude dbs only for certain tables?
-    // TODO or just run separate tables in separate tests
     @Test
     fun idTables() {
         testOnFile(
-                "IdTables.kt",
+                Paths.get("IdTables.kt"),
                 listOf(Sample1, Sample2, Sample3, Sample4),
                 excludedDbList = listOf(TestDB.SQLITE, TestDB.MYSQL)
         )
@@ -388,9 +368,9 @@ class ExposedCodeGeneratorFromExposedTest : DatabaseTestsBase() {
     // Exposed UUID gets mapped to binary
     fun longIdTableSQLite() {
         testOnFile(
-                "sqlite/IdTables.kt",
+                Paths.get("sqlite", "IdTables.kt"),
                 listOf(Sample1, Sample2, Sample4),
-                excludedDbList = fullDBList - listOf(TestDB.SQLITE)
+                excludedDbList = TestDB.enabledInTests() - listOf(TestDB.SQLITE)
         )
     }
 
@@ -398,9 +378,9 @@ class ExposedCodeGeneratorFromExposedTest : DatabaseTestsBase() {
     // Exposed UUID gets mapped to binary
     fun uuidTableMySQL() {
         testOnFile(
-                "mysql/IdTables.kt",
+                Paths.get("mysql", "IdTables.kt"),
                 listOf(Sample1, Sample2, Sample4),
-                excludedDbList = fullDBList - listOf(TestDB.MYSQL)
+                excludedDbList = TestDB.enabledInTests() - listOf(TestDB.MYSQL)
         )
     }
 }
