@@ -1,6 +1,7 @@
 package databases.vartypes_h2
 
-import org.jetbrains.exposed.sql.*
+import org.jetbrains.exposed.sql.Table
+import org.jetbrains.exposed.sql.Column
 import org.jetbrains.exposed.sql.statements.api.ExposedBlob
 
 object BinaryTypes : Table("binary_types") {

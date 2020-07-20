@@ -1,6 +1,7 @@
 package databases.vartypes_h2
 
-import org.jetbrains.exposed.sql.*
+import org.jetbrains.exposed.sql.Table
+import org.jetbrains.exposed.sql.Column
 import java.math.BigDecimal
 
 object DecimalTypes : Table("decimal_types") {
