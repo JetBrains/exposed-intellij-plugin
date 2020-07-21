@@ -1,6 +1,7 @@
 package databases.vartypes_sqlite
 
-import org.jetbrains.exposed.sql.*
+import org.jetbrains.exposed.sql.Column
+import org.jetbrains.exposed.sql.Table
 
 object FloatingPointTypes : Table("floating_point_types") {
     val f1: Column<Float> = float("f1")

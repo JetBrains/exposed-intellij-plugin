@@ -1,7 +1,8 @@
 package databases.vartypes_psql
 
-import org.jetbrains.exposed.sql.*
-import java.util.*
+import org.jetbrains.exposed.sql.Table
+import org.jetbrains.exposed.sql.Column
+import java.util.UUID
 
 object MiscTypes : Table("misc_types") {
     val m1: Column<Boolean> = bool("m1")

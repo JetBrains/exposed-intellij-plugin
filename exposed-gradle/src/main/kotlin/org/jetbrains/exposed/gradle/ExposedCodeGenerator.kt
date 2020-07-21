@@ -67,8 +67,22 @@ class ExposedCodeGenerator(private val tables: List<Table>) {
                 }
             }
             Long::class.javaObjectType -> initializeColumnParameters(Long::class, "long")
-            BigDecimal::class.java ->
-                initializeColumnParameters(BigDecimal::class, "decimal", column.size, column.decimalDigits)
+            BigDecimal::class.java -> {
+                // TODO work out a constant for all databases perhaps?
+                // or rewrite for different dbs
+                val precision = if (column.size >= 0 && column.size < MaxSize.MAX_NUMERIC_PRECISION) {
+                    column.size
+                } else {
+                    MaxSize.MAX_NUMERIC_PRECISION
+                }
+                val scale = when {
+                    // it's unlikely that this is to ever happen but just to cover the possibility
+                    column.decimalDigits > MaxSize.MAX_NUMERIC_SCALE -> MaxSize.MAX_NUMERIC_SCALE
+                    column.decimalDigits < 0 -> 0
+                    else -> column.decimalDigits
+                }
+                initializeColumnParameters(BigDecimal::class, "decimal", precision, scale)
+            }
             Float::class.javaObjectType-> initializeColumnParameters(Float::class, "float")
             Double::class.javaObjectType -> {
                 val name = column.columnDataType.name.toLowerCase()
@@ -87,7 +101,11 @@ class ExposedCodeGenerator(private val tables: List<Table>) {
             String::class.java -> {
                 val name = column.columnDataType.name.toLowerCase()
                 val matcher = numericArgumentsPattern.matcher(name)
-                val size = if (matcher.find()) matcher.group(1).takeWhile { it.isDigit() }.toInt() else column.size
+                val size = when {
+                    matcher.find() -> matcher.group(1).takeWhile { it.isDigit() }.toInt()
+                    column.size > 0 -> column.size
+                    else -> MaxSize.MAX_VARCHAR_SIZE
+                }
                 when {
                     name.contains("varchar") || name.contains("varying") -> initializeColumnParameters(String::class, "varchar", size)
                     name.contains("char") -> initializeColumnParameters(String::class, "char", size)
@@ -119,7 +137,7 @@ class ExposedCodeGenerator(private val tables: List<Table>) {
                     name.contains("uuid") -> initializeColumnParameters(UUID::class, "uuid")
                     // can be 'varbinary'
                     name.contains("binary") || name.contains("bytea") -> {
-                        val size = if (column.size > 0) column.size else MaxSize.POSTGRESQL_MAX_BINARY_SIZE
+                        val size = if (column.size > 0) column.size else MaxSize.MAX_BINARY
                         initializeColumnParameters(ByteArray::class, "binary", size)
                     }
                 }

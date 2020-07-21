@@ -1,6 +1,7 @@
 package databases.vartypes_psql
 
-import org.jetbrains.exposed.sql.*
+import org.jetbrains.exposed.sql.Table
+import org.jetbrains.exposed.sql.Column
 
 object IntegerTypes : Table("integer_types") {
     val i1: Column<Int> = integer("i1").autoIncrement()

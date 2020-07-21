@@ -1,6 +1,7 @@
 package databases.vartypes_sqlite
 
-import org.jetbrains.exposed.sql.*
+import org.jetbrains.exposed.sql.Column
+import org.jetbrains.exposed.sql.Table
 
 object IntegerTypes : Table("integer_types") {
     val i1: Column<Int> = integer("i1")
