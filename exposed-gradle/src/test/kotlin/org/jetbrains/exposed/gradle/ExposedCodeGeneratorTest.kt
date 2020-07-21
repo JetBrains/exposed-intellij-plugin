@@ -10,25 +10,7 @@ import java.nio.file.Path
 import java.nio.file.Paths
 
 // run tests from a .kt file, check against the same file
-class ExposedCodeGeneratorFromExposedTest : DatabaseTestsBase() {
-    private fun testOnFile(
-            testDataFilepath: Path,
-            tables: List<Table>,
-            tableName: String? = null,
-            excludedDbList: List<TestDB> = emptyList()
-    ) {
-        withDb(excludeSettings = excludedDbList, statement = {
-            for (table in tables) {
-                SchemaUtils.drop(table)
-                SchemaUtils.create(table)
-            }
-            checkDatabaseMetadataAgainstFile(it, generalTestDataPath, testDataFilepath, tableName)
-            for (table in tables) {
-                SchemaUtils.drop(table)
-            }
-        })
-    }
-
+class ExposedCodeGeneratorFromExposedTest : DatabaseFromExposedFileTest() {
     @Test
     fun integerTypes() {
         testOnFile(
@@ -117,27 +99,36 @@ class ExposedCodeGeneratorFromExposedTest : DatabaseTestsBase() {
                 excludedDbList = TestDB.enabledInTests() - listOf(TestDB.MYSQL)
         )
     }*/
-}
 
-// TODO refactor
-// run tests from a sql script, check against a kt file
-abstract class DatabaseTypesTest : DatabaseTestsBase() {
-    protected fun testFromScriptAgainstKtFile(
-            scriptFilepath: Path,
-            testDataFilepath: Path,
-            tableName: String? = null,
-            excludedDbList: List<TestDB> = emptyList()
-    ) {
-        withDb(excludeSettings = excludedDbList, statement = {
-            val script = scriptFilepath.toFile().readText()
-            val splitResults = script.split(Regex("((?<=INSERT)|(?=INSERT))|((?<=CREATE)|(?=CREATE))|((?<=DROP)|(?=DROP))|((?<=--)|(?=--))")).filterNot { it.isBlank() }
-            val commands = mutableListOf<String>()
-            for (i in splitResults.indices step 2) {
-                commands.add("${splitResults[i]} ${splitResults[i + 1]}")
-            }
-            commands.forEach { exec(it) }
-            commit()
-            checkDatabaseMetadataAgainstFile(it, resourcesTestDataPath, testDataFilepath, tableName)
-        })
+    @Test
+    // PostgreSQL requires the referenced column to have a 'unique' constraint,
+    // but we don't have such constraints in Exposed, we only have primary keys
+    // MySQL doesn't allow referencing a column on DB creation (I think?)
+    fun selfReference() {
+        testOnFile(
+                Paths.get("RefTable.kt"),
+                listOf(RefTable),
+                excludedDbList = listOf(TestDB.MYSQL, TestDB.POSTGRESQL, TestDB.POSTGRESQLNG)
+        )
+    }
+
+    @Test
+    fun tableReference() {
+        testOnFile(
+                Paths.get("RefAnotherTable.kt"),
+                listOf(Sample, SampleRef),
+                excludedDbList = listOf(TestDB.MYSQL, TestDB.POSTGRESQL, TestDB.POSTGRESQLNG)
+        )
     }
 }
+
+class ExposedCodeGeneratorFromScriptTest : DatabaseFromScriptTest() {
+    @Test
+    // this test can be used for making sure all table references are established correctly
+    fun chinook() = testFromScriptAgainstKtFile(
+            Paths.get(resourcesTestDataPath.toString(), "vartypes_sqlite", "chinook.sql"),
+            Paths.get("vartypes_sqlite", "Chinook.kt"),
+            excludedDbList = TestDB.enabledInTests() - listOf(TestDB.SQLITE)
+    )
+}
+

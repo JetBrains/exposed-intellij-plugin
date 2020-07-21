@@ -1,10 +1,12 @@
-package org.jetbrains.exposed.gradle
+package org.jetbrains.exposed.gradle.types
 
+import org.jetbrains.exposed.gradle.DatabaseFromScriptTest
+import org.jetbrains.exposed.gradle.resourcesTestDataPath
 import org.jetbrains.exposed.gradle.tests.TestDB
 import org.junit.Test
 import java.nio.file.Paths
 
-class PostgreSQLTest : DatabaseTypesTest() {
+class PostgreSQLTest : DatabaseFromScriptTest() {
     private fun runPostgreSQLTest(filename: String, tableName: String? = null) {
         testFromScriptAgainstKtFile(
                 Paths.get(resourcesTestDataPath.toString(), "vartypes_psql", "vartypes.sql"),
