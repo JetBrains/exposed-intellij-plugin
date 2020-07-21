@@ -43,9 +43,13 @@ class ExposedCodeGenerator(private val tables: List<Table>) {
         CodeBlock.of("%M(\"$columnName\", ${arguments.joinToString(", ")})", MemberName(packageName, functionName))
     }
 
-    private data class ColumnDefinition(val columnKClass: KClass<*>, val columnInitializationBlock: CodeBlock)
+    private data class ColumnDefinition(
+            val columnKClass: KClass<*>,
+            val columnInitializationBlock: CodeBlock,
+            val nullable: Boolean
+    )
 
-    private fun generateColumnDefinition(column: Column): ColumnDefinition {
+    private fun generateColumnDefinition(column: Column, allowNullability: Boolean = true): ColumnDefinition {
         val columnName = getColumnName(column)
 
         var columnInitializerBlock: CodeBlock? = null
@@ -151,7 +155,7 @@ class ExposedCodeGenerator(private val tables: List<Table>) {
         if (column.isAutoIncremented) {
             columnInitializerBlock = columnInitializerBlock!!.append(CodeBlock.of(
                     ".%M()",
-                    MemberName(exposedPackageName, "autoIncrement")
+                    MemberName("", "autoIncrement")
             ))
         }
 
@@ -164,13 +168,13 @@ class ExposedCodeGenerator(private val tables: List<Table>) {
             val blockToAppend = if (column.parent == column.referencedColumn.parent) {
                 CodeBlock.of(
                         ".%M(%N)",
-                        MemberName(exposedPackageName, "references"),
+                        MemberName("", "references"),
                         referencedColumnProperty
                 )
             } else {
                 CodeBlock.of(
                         ".%M(%N.%N)",
-                        MemberName(exposedPackageName, "references"),
+                        MemberName("", "references"),
                         referencedColumnTable, // should be not null
                         referencedColumnProperty
                 )
@@ -178,7 +182,14 @@ class ExposedCodeGenerator(private val tables: List<Table>) {
             columnInitializerBlock = columnInitializerBlock!!.append(blockToAppend)
         }
 
-        return ColumnDefinition(columnType!!, columnInitializerBlock!!)
+        if (column.isNullable && allowNullability) {
+            columnInitializerBlock = columnInitializerBlock!!.append(CodeBlock.of(
+                    ".%M()",
+                    MemberName("", "nullable")
+            ))
+        }
+
+        return ColumnDefinition(columnType!!, columnInitializerBlock!!, column.isNullable)
     }
 
     private fun CodeBlock.append(codeBlock: CodeBlock): CodeBlock {
@@ -191,7 +202,9 @@ class ExposedCodeGenerator(private val tables: List<Table>) {
 
         return PropertySpec.Companion.builder(
                 columnVariableName,
-                org.jetbrains.exposed.sql.Column::class.parameterizedBy(columnDefinition.columnKClass)
+                org.jetbrains.exposed.sql.Column::class.asTypeName().parameterizedBy(
+                        columnDefinition.columnKClass.asTypeName().copy(nullable = columnDefinition.nullable)
+                )
         ).initializer(columnDefinition.columnInitializationBlock).build()
     }
 
@@ -213,9 +226,10 @@ class ExposedCodeGenerator(private val tables: List<Table>) {
     }
 
     private fun generateIdTable(table: Table, idColumn: Column): TypeSpec.Builder {
-        val columnDefinition = generateColumnDefinition(idColumn)
+        // explicitly prohibiting creation of nullable id columns
+        val idColumnDefinition = generateColumnDefinition(idColumn, allowNullability = false)
         val columnPropertyBuilder = PropertySpec.builder("id", org.jetbrains.exposed.sql.Column::class.asClassName()
-                .parameterizedBy(EntityID::class.parameterizedBy(columnDefinition.columnKClass)))
+                .parameterizedBy(EntityID::class.parameterizedBy(idColumnDefinition.columnKClass)))
 
         val superclass = when (idColumn.columnDataType.typeMappedClass) {
             Integer::class.javaObjectType -> IntIdTable::class
@@ -228,7 +242,7 @@ class ExposedCodeGenerator(private val tables: List<Table>) {
         val tableObjectBuilder = TypeSpec.objectBuilder(tableObjectName)
 
         if (superclass == IdTable::class) {
-            tableObjectBuilder.superclass(superclass.parameterizedBy(columnDefinition.columnKClass))
+            tableObjectBuilder.superclass(superclass.parameterizedBy(idColumnDefinition.columnKClass))
             tableObjectBuilder.addSuperclassConstructorParameter(
                     "%S",
                     tableName
@@ -249,7 +263,7 @@ class ExposedCodeGenerator(private val tables: List<Table>) {
             tableObjectBuilder.addProperty(primaryKey)
             val idProperty = columnPropertyBuilder
                     .addModifiers(KModifier.OVERRIDE)
-                    .initializer(columnDefinition.columnInitializationBlock
+                    .initializer(idColumnDefinition.columnInitializationBlock
                             .append(CodeBlock.of(".%M()", MemberName("", "entityId")))
                     )
                     .build()

@@ -120,6 +120,14 @@ class ExposedCodeGeneratorFromExposedTest : DatabaseFromExposedFileTest() {
                 excludedDbList = listOf(TestDB.MYSQL, TestDB.POSTGRESQL, TestDB.POSTGRESQLNG)
         )
     }
+
+    @Test
+    fun nullableTypes() {
+        testOnFile(
+                Paths.get("NullableTypes.kt"),
+                listOf(NullableTypes)
+        )
+    }
 }
 
 class ExposedCodeGeneratorFromScriptTest : DatabaseFromScriptTest() {
