@@ -103,7 +103,7 @@ class ExposedCodeGeneratorFromExposedTest : DatabaseFromExposedFileTest() {
     @Test
     // PostgreSQL requires the referenced column to have a 'unique' constraint,
     // but we don't have such constraints in Exposed, we only have primary keys
-    // MySQL doesn't allow referencing a column on DB creation (I think?)
+    // MySQL doesn't allow referencing a column on DB creation, only foreign keys
     fun selfReference() {
         testOnFile(
                 Paths.get("RefTable.kt"),
