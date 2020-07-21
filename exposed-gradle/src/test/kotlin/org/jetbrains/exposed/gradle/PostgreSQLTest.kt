@@ -29,4 +29,11 @@ class PostgreSQLTest : DatabaseTypesTest() {
 
     @Test
     fun charTypes() = runPostgreSQLTest("CharTypes.kt", "char_types")
+
+    @Test
+    fun smallIntTypes() = runPostgreSQLTest("SmallIntTypes.kt", "small_int_types")
+
+    @Test
+    fun miscTypes() = runPostgreSQLTest("MiscTypes.kt", "misc_types")
+
 }
