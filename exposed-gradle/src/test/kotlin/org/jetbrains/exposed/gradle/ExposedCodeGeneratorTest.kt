@@ -5,9 +5,7 @@ import org.jetbrains.exposed.gradle.tests.DatabaseTestsBase
 import org.jetbrains.exposed.gradle.tests.TestDB
 import org.jetbrains.exposed.sql.SchemaUtils
 import org.jetbrains.exposed.sql.Table
-import org.junit.Assert.assertTrue
 import org.junit.Test
-import java.io.File
 import java.nio.file.Path
 import java.nio.file.Paths
 
@@ -53,8 +51,8 @@ class ExposedCodeGeneratorFromExposedTest : DatabaseTestsBase() {
     }
 
     @Test
-    fun numericTypes() {
-        testOnFile(Paths.get("NumericTypes.kt"), listOf(NumericTypes), "numeric_types")
+    fun decimalTypes() {
+        testOnFile(Paths.get("DecimalTypes.kt"), listOf(DecimalTypes), "decimal_types")
     }
 
     // why does exposed map a float column to double?
@@ -68,7 +66,6 @@ class ExposedCodeGeneratorFromExposedTest : DatabaseTestsBase() {
         testOnFile(Paths.get("CharTypes.kt"), listOf(CharTypes), "char_types")
     }
 
-    // The length of the Binary column is missing.
     @Test
     fun miscTypes() {
         testOnFile(
@@ -135,7 +132,7 @@ abstract class DatabaseTypesTest : DatabaseTestsBase() {
             val script = scriptFilepath.toFile().readText()
             val splitResults = script.split(Regex("((?<=INSERT)|(?=INSERT))|((?<=CREATE)|(?=CREATE))|((?<=DROP)|(?=DROP))|((?<=--)|(?=--))")).filterNot { it.isBlank() }
             val commands = mutableListOf<String>()
-            for (i in 0 until splitResults.size step 2) {
+            for (i in splitResults.indices step 2) {
                 commands.add("${splitResults[i]} ${splitResults[i + 1]}")
             }
             commands.forEach { exec(it) }

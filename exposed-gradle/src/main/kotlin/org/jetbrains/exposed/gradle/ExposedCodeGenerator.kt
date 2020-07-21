@@ -70,14 +70,14 @@ class ExposedCodeGenerator(private val tables: List<Table>) {
             BigDecimal::class.java -> {
                 // TODO work out a constant for all databases perhaps?
                 // or rewrite for different dbs
-                val precision = if (column.size >= 0 && column.size < MaxSize.MAX_NUMERIC_PRECISION) {
+                val precision = if (column.size >= 0 && column.size < MaxSize.MAX_DECIMAL_PRECISION) {
                     column.size
                 } else {
-                    MaxSize.MAX_NUMERIC_PRECISION
+                    MaxSize.MAX_DECIMAL_PRECISION
                 }
                 val scale = when {
                     // it's unlikely that this is to ever happen but just to cover the possibility
-                    column.decimalDigits > MaxSize.MAX_NUMERIC_SCALE -> MaxSize.MAX_NUMERIC_SCALE
+                    column.decimalDigits > MaxSize.MAX_DECIMAL_SCALE -> MaxSize.MAX_DECIMAL_SCALE
                     column.decimalDigits < 0 -> 0
                     else -> column.decimalDigits
                 }

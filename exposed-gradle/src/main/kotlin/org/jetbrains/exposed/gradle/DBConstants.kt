@@ -6,6 +6,6 @@ object MaxSize {
 
     // the following values are max precision and scale for PostgreSQL
     // they are used as universal constants in this application for the sake of uniformity
-    const val MAX_NUMERIC_PRECISION = 131072
-    const val MAX_NUMERIC_SCALE = 16383
+    const val MAX_DECIMAL_PRECISION = 131072
+    const val MAX_DECIMAL_SCALE = 16383
 }

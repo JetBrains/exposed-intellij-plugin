@@ -20,9 +20,8 @@ class PostgreSQLTest : DatabaseTypesTest() {
     @Test
     fun floatingPointTypes() = runPostgreSQLTest("FloatingPointTypes.kt", "floating_point_types")
 
-    // TODO consistency between calling those numeric and/or decimal across all tests
     @Test
-    fun numericTypes() = runPostgreSQLTest("NumericTypes.kt", "numeric_types")
+    fun decimalTypes() = runPostgreSQLTest("DecimalTypes.kt", "decimal_types")
 
     @Test
     fun longTypes() = runPostgreSQLTest("LongTypes.kt", "long_types")

@@ -2,7 +2,7 @@ DROP TABLE IF EXISTS long_types;
 DROP TABLE IF EXISTS char_types;
 DROP TABLE IF EXISTS floating_point_types;
 DROP TABLE IF EXISTS miscellanious_types;
-DROP TABLE IF EXISTS numeric_types;
+DROP TABLE IF EXISTS decimal_types;
 DROP TABLE IF EXISTS integer_types;
 
 CREATE TABLE long_types(
@@ -29,11 +29,11 @@ b1 boolean,
 b2 blob
 );
 INSERT INTO miscellanious_types VALUES(0,'abracadabra?');
-CREATE TABLE numeric_types(
+CREATE TABLE decimal_types(
 n1 numeric,
 n2 decimal(10, 5)
 );
-INSERT INTO numeric_types VALUES(46234673,1234567890.1234500408);
+INSERT INTO decimal_types VALUES(46234673,1234567890.1234500408);
 CREATE TABLE integer_types(
 i1 int, 
 i2 integer,  

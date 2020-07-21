@@ -20,9 +20,8 @@ class SQLiteTest : DatabaseTypesTest() {
     @Test
     fun floatingPointTypes() = runSQLiteTest("FloatingPointTypes.kt", "floating_point_types")
 
-    // TODO consistency between calling those numeric and/or decimal across all tests
     @Test
-    fun numericTypes() = runSQLiteTest("NumericTypes.kt", "numeric_types")
+    fun decimalTypes() = runSQLiteTest("DecimalTypes.kt", "decimal_types")
 
     @Test
     fun longTypes() = runSQLiteTest("LongTypes.kt", "long_types")
