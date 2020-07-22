@@ -1,12 +1,8 @@
 package org.jetbrains.exposed.gradle
 
 import org.jetbrains.exposed.gradle.databases.*
-import org.jetbrains.exposed.gradle.tests.DatabaseTestsBase
 import org.jetbrains.exposed.gradle.tests.TestDB
-import org.jetbrains.exposed.sql.SchemaUtils
-import org.jetbrains.exposed.sql.Table
 import org.junit.Test
-import java.nio.file.Path
 import java.nio.file.Paths
 
 // run tests from a .kt file, check against the same file
@@ -104,18 +100,18 @@ class ExposedCodeGeneratorFromExposedTest : DatabaseFromExposedFileTest() {
     // PostgreSQL requires the referenced column to have a 'unique' constraint,
     // but we don't have such constraints in Exposed, we only have primary keys
     // MySQL doesn't allow referencing a column on DB creation, only foreign keys
-    fun selfReference() {
+    fun selfForeignKey() {
         testOnFile(
-                Paths.get("RefTable.kt"),
-                listOf(RefTable),
+                Paths.get("SelfForeignKeyTable.kt"),
+                listOf(SelfForeignKeyTable),
                 excludedDbList = listOf(TestDB.MYSQL, TestDB.POSTGRESQL, TestDB.POSTGRESQLNG)
         )
     }
 
     @Test
-    fun tableReference() {
+    fun foreignKey() {
         testOnFile(
-                Paths.get("RefAnotherTable.kt"),
+                Paths.get("ForeignKeyTable.kt"),
                 listOf(Sample, SampleRef),
                 excludedDbList = listOf(TestDB.MYSQL, TestDB.POSTGRESQL, TestDB.POSTGRESQLNG)
         )
