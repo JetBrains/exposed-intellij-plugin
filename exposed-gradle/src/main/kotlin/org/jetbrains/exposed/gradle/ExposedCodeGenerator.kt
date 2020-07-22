@@ -22,10 +22,10 @@ import kotlin.reflect.KClass
 // TODO support schemas
 class ExposedCodeGenerator(private val tables: List<Table>) {
 
-    // column name to its property spec
-    private val processedColumns: LinkedHashMap<String, PropertySpec> = LinkedHashMap()
-    // column name to its parent table spec
-    private val columnsToTables: HashMap<String, TypeSpec> = HashMap()
+    // column to its property spec
+    private val processedColumns: LinkedHashMap<Column, PropertySpec> = LinkedHashMap()
+    // column to its parent table spec
+    private val columnsToTables: HashMap<Column, TypeSpec> = HashMap()
 
 
     private fun generateUnsupportedTypeErrorMessage(column: Column) =
@@ -49,7 +49,7 @@ class ExposedCodeGenerator(private val tables: List<Table>) {
             val nullable: Boolean
     )
 
-    private fun generateColumnDefinition(column: Column, allowNullability: Boolean = true): ColumnDefinition {
+    private fun generateColumnDefinition(column: Column): ColumnDefinition {
         val columnName = getColumnName(column)
 
         var columnInitializerBlock: CodeBlock? = null
@@ -160,11 +160,11 @@ class ExposedCodeGenerator(private val tables: List<Table>) {
         }
 
         if (column.referencedColumn != null) {
-            val referencedColumnProperty = processedColumns[column.referencedColumn.fullName]
+            val referencedColumnProperty = processedColumns[column.referencedColumn]
                     ?: throw MetadataReferencedColumnNotFoundException(
                             "Column ${column.referencedColumn.fullName} referenced by ${column.fullName} not found."
                     )
-            val referencedColumnTable = columnsToTables[column.referencedColumn.fullName]
+            val referencedColumnTable = columnsToTables[column.referencedColumn]
             val blockToAppend = if (column.parent == column.referencedColumn.parent) {
                 CodeBlock.of(
                         ".%M(%N)",
@@ -182,14 +182,16 @@ class ExposedCodeGenerator(private val tables: List<Table>) {
             columnInitializerBlock = columnInitializerBlock!!.append(blockToAppend)
         }
 
-        if (column.isNullable && allowNullability) {
+        // even though some DBs, like SQLite, allow nullable primary keys to support legacy systems,
+        // I don't think we should
+        if (column.isNullable && !column.isPartOfPrimaryKey) {
             columnInitializerBlock = columnInitializerBlock!!.append(CodeBlock.of(
                     ".%M()",
                     MemberName("", "nullable")
             ))
         }
 
-        return ColumnDefinition(columnType!!, columnInitializerBlock!!, column.isNullable)
+        return ColumnDefinition(columnType!!, columnInitializerBlock!!, column.isNullable && !column.isPartOfPrimaryKey)
     }
 
     private fun CodeBlock.append(codeBlock: CodeBlock): CodeBlock {
@@ -209,15 +211,15 @@ class ExposedCodeGenerator(private val tables: List<Table>) {
     }
 
     // TODO extension method?
-    private fun addColumns(table: Table, tableObject: TypeSpec.Builder, idColumn: Column? = null) {
+    private fun addColumns(table: Table, tableObjectBuilder: TypeSpec.Builder, idColumn: Column? = null) {
         for (column in table.columns) {
             if (column == idColumn) {
                 continue
             }
             try {
                 val columnProperty = generatePropertyForColumn(column)
-                tableObject.addProperty(columnProperty)
-                processedColumns[column.fullName] = columnProperty
+                tableObjectBuilder.addProperty(columnProperty)
+                processedColumns[column] = columnProperty
             } catch (e: MetadataUnsupportedTypeException) {
                 // TODO log the stacktrace or not? technically this should be readable by the client, so... not?
                 logger.error("Unsupported type", e)
@@ -225,9 +227,10 @@ class ExposedCodeGenerator(private val tables: List<Table>) {
         }
     }
 
-    private fun generateIdTable(table: Table, idColumn: Column): TypeSpec.Builder {
-        // explicitly prohibiting creation of nullable id columns
-        val idColumnDefinition = generateColumnDefinition(idColumn, allowNullability = false)
+    private fun generateIdTable(table: Table, idColumn: Column, tableObjectBuilder: TypeSpec.Builder){
+        val tableName = getTableName(table)
+
+        val idColumnDefinition = generateColumnDefinition(idColumn)
         val columnPropertyBuilder = PropertySpec.builder("id", org.jetbrains.exposed.sql.Column::class.asClassName()
                 .parameterizedBy(EntityID::class.parameterizedBy(idColumnDefinition.columnKClass)))
 
@@ -237,30 +240,13 @@ class ExposedCodeGenerator(private val tables: List<Table>) {
             else -> if (idColumn.columnDataType.name.equals("uuid", ignoreCase = true)) UUIDTable::class else IdTable::class
         }
 
-        val tableObjectName = getObjectNameForTable(table)
-        val tableName = getTableName(table)
-        val tableObjectBuilder = TypeSpec.objectBuilder(tableObjectName)
-
         if (superclass == IdTable::class) {
             tableObjectBuilder.superclass(superclass.parameterizedBy(idColumnDefinition.columnKClass))
             tableObjectBuilder.addSuperclassConstructorParameter(
                     "%S",
                     tableName
             )
-            val primaryKey = PropertySpec.builder(
-                    "primaryKey",
-                    ClassName("", "PrimaryKey").copy(nullable = true),
-                    KModifier.OVERRIDE
-            )
-                    .delegate(CodeBlock.builder()
-                            .beginControlFlow("lazy")
-                            .add("super.primaryKey ?: PrimaryKey(id)")
-                            .add("\n")
-                            .endControlFlow()
-                            .build()
-                    )
-                    .build()
-            tableObjectBuilder.addProperty(primaryKey)
+
             val idProperty = columnPropertyBuilder
                     .addModifiers(KModifier.OVERRIDE)
                     .initializer(idColumnDefinition.columnInitializationBlock
@@ -268,7 +254,9 @@ class ExposedCodeGenerator(private val tables: List<Table>) {
                     )
                     .build()
             tableObjectBuilder.addProperty(idProperty)
-            processedColumns[idColumn.fullName] = idProperty
+            processedColumns[idColumn] = idProperty
+
+            generatePrimaryKey(listOf(idColumn), tableObjectBuilder)
         } else {
             tableObjectBuilder.superclass(superclass)
             tableObjectBuilder.addSuperclassConstructorParameter(
@@ -276,37 +264,76 @@ class ExposedCodeGenerator(private val tables: List<Table>) {
                     tableName,
                     getColumnName(idColumn) // to specify the id column name, which might not be "id"
             )
-            processedColumns[idColumn.fullName] = columnPropertyBuilder.build()
+            processedColumns[idColumn] = columnPropertyBuilder.build()
         }
 
         addColumns(table, tableObjectBuilder, idColumn)
-        return tableObjectBuilder
+    }
+
+    // TODO extension method?
+    private fun generatePrimaryKey(
+            primaryKeyColumns: List<Column>,
+            tableObjectBuilder: TypeSpec.Builder
+    ) {
+        val primaryKeys = primaryKeyColumns.map {
+            processedColumns[it]?.name
+                    ?: throw MetadataReferencedColumnNotFoundException("Primary key column ${it.fullName} not found.")
+        }
+        val primaryKey = PropertySpec.builder(
+                "primaryKey",
+                ClassName("", "PrimaryKey"),
+                KModifier.OVERRIDE
+        )
+                .initializer(CodeBlock.of("%M(${primaryKeys.joinToString(", ")})", MemberName("", "PrimaryKey")))
+                .build()
+        tableObjectBuilder.addProperty(primaryKey)
+    }
+
+    private fun generateTableObjectDeclaration(table: Table, tableObjectBuilder: TypeSpec.Builder) {
+        val tableName = getTableName(table)
+        val superclass = org.jetbrains.exposed.sql.Table::class
+        tableObjectBuilder.superclass(superclass)
+        tableObjectBuilder.addSuperclassConstructorParameter(
+                "%S",
+                tableName
+        )
+    }
+
+    private fun generatePrimaryKeyTable(table: Table, primaryKeyColumns: List<Column>, tableObjectBuilder: TypeSpec.Builder) {
+        fun generateTable() {
+            generateTableObjectDeclaration(table, tableObjectBuilder)
+            addColumns(table, tableObjectBuilder)
+            generatePrimaryKey(primaryKeyColumns, tableObjectBuilder)
+        }
+
+        if (primaryKeyColumns.size > 1) {
+            generateTable()
+        } else {
+            val idColumn = primaryKeyColumns[0]
+            val columnDefinition = generateColumnDefinition(idColumn)
+            if ((columnDefinition.columnKClass == Int::class || columnDefinition.columnKClass == Long::class) && !idColumn.isAutoIncremented) {
+                generateTable()
+            } else {
+                generateIdTable(table, idColumn, tableObjectBuilder)
+            }
+        }
     }
 
     private fun generateExposedTable(table: Table): TypeSpec {
+        val tableObjectName = getObjectNameForTable(table)
+        val tableObjectBuilder = TypeSpec.objectBuilder(tableObjectName)
+
         val primaryKeyColumns = table.columns.filter { it.isPartOfPrimaryKey }
-        val idColumn = if (primaryKeyColumns.size == 1) primaryKeyColumns[0] else null
-        val tableObjectBuilder: TypeSpec.Builder
-        if (idColumn != null) {
-            tableObjectBuilder = generateIdTable(table, idColumn)
+        if (primaryKeyColumns.isNotEmpty()) {
+            generatePrimaryKeyTable(table, primaryKeyColumns, tableObjectBuilder)
         } else {
-            val tableObjectName = getObjectNameForTable(table)
-            val tableName = getTableName(table)
-            tableObjectBuilder = TypeSpec.objectBuilder(tableObjectName)
-
-            val superclass = org.jetbrains.exposed.sql.Table::class
-            tableObjectBuilder.superclass(superclass)
-            tableObjectBuilder.addSuperclassConstructorParameter(
-                    "%S",
-                    tableName
-            )
-
+            generateTableObjectDeclaration(table, tableObjectBuilder)
             addColumns(table, tableObjectBuilder)
         }
 
         val tableObject = tableObjectBuilder.build()
         for (column in table.columns) {
-            columnsToTables[column.fullName] = tableObject
+            columnsToTables[column] = tableObject
         }
 
         return tableObject

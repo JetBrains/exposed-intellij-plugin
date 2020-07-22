@@ -22,9 +22,7 @@ object Sample3 : UUIDTable("sample_3", "id") {
 object Sample4 : IdTable<String>("sample_4") {
     override val id: Column<EntityID<String>> = varchar("id", 30).entityId()
 
-    override val primaryKey: PrimaryKey? by lazy {
-        super.primaryKey ?: PrimaryKey(id)
-    }
+    override val primaryKey: PrimaryKey = PrimaryKey(id)
 
     val str: Column<String> = text("str")
 }

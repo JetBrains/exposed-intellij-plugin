@@ -128,6 +128,16 @@ class ExposedCodeGeneratorFromExposedTest : DatabaseFromExposedFileTest() {
                 listOf(NullableTypes)
         )
     }
+
+    @Test
+    fun primaryKey() {
+        testOnFile(Paths.get("PrimaryKeyTable.kt"), listOf(SinglePrimaryKeyTable))
+    }
+
+    @Test
+    fun compositePrimaryKey() {
+        testOnFile(Paths.get("CompositePrimaryKeyTable.kt"), listOf(CompositePrimaryKeyTable))
+    }
 }
 
 class ExposedCodeGeneratorFromScriptTest : DatabaseFromScriptTest() {
