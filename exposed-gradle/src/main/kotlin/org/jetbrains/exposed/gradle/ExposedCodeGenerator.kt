@@ -9,8 +9,9 @@ import org.slf4j.LoggerFactory
 import schemacrawler.schema.Column
 import schemacrawler.schema.Table
 import java.math.BigDecimal
-import java.sql.Blob
-import java.sql.Clob
+import java.sql.*
+import java.sql.Date
+import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.util.*
@@ -20,7 +21,10 @@ import kotlin.collections.LinkedHashMap
 import kotlin.reflect.KClass
 
 // TODO support schemas
-class ExposedCodeGenerator(private val tables: List<Table>) {
+class ExposedCodeGenerator(
+        private val tables: List<Table>,
+        private val dbms: DBMS? = null
+) {
 
     // column to its property spec
     private val processedColumns: LinkedHashMap<Column, PropertySpec> = LinkedHashMap()
@@ -72,9 +76,7 @@ class ExposedCodeGenerator(private val tables: List<Table>) {
             }
             Long::class.javaObjectType -> initializeColumnParameters(Long::class, "long")
             BigDecimal::class.java -> {
-                // TODO work out a constant for all databases perhaps?
-                // or rewrite for different dbs
-                val precision = if (column.size >= 0 && column.size < MaxSize.MAX_DECIMAL_PRECISION) {
+                val precision = if (column.size >= 0 && column.size <= MaxSize.MAX_DECIMAL_PRECISION) {
                     column.size
                 } else {
                     MaxSize.MAX_DECIMAL_PRECISION
@@ -135,6 +137,17 @@ class ExposedCodeGenerator(private val tables: List<Table>) {
             }
             Blob::class.javaObjectType -> initializeColumnParameters(ExposedBlob::class, "blob")
             UUID::class.javaObjectType -> initializeColumnParameters(UUID::class, "uuid")
+            Date::class.javaObjectType, LocalDate::class.javaObjectType -> initializeColumnParameters(LocalDate::class, "date", packageName = exposedDateTimePackageName)
+            Timestamp::class.javaObjectType -> {
+                if (dbms in listOf(DBMS.POSTGRESQL)) {
+                    initializeColumnParameters(Instant::class, "timestamp", packageName = exposedDateTimePackageName)
+                } else {
+                    initializeColumnParameters(LocalDateTime::class, "datetime", packageName = exposedDateTimePackageName)
+                }
+            }
+            // TODO can those even happen?
+            /*Duration::class.javaObjectType -> initializeColumnParameters(Duration::class, "duration", )
+            LocalDateTime::class.javaObjectType -> initializeColumnParameters(LocalDateTime::class, "datetime")*/
             else -> {
                 val name = column.columnDataType.name.toLowerCase()
                 when {
