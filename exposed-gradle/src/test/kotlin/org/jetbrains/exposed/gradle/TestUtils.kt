@@ -19,11 +19,10 @@ fun checkDatabaseMetadataAgainstFile(
 ) {
     val metadataGetter = MetadataGetter(db.connection, db.user, db.pass)
     val tables = metadataGetter.getTables().filterUtilTables()
-    val dbms = testDBtoDBMS(db)
     val exposedCodeGenerator = if (tableName != null) {
-        ExposedCodeGenerator(tables.filter { it.name.equals(tableName, ignoreCase = true) }, dbms)
+        ExposedCodeGenerator(tables.filter { it.name.equals(tableName, ignoreCase = true) })
     } else {
-        ExposedCodeGenerator(tables, dbms)
+        ExposedCodeGenerator(tables)
     }
     val fileSpec = exposedCodeGenerator.generateExposedTables(db.name)
     val sb = StringBuilder()
@@ -51,16 +50,4 @@ private fun List<String>.filterKtFileLines() = this.filterNot {
 }
 
 private fun List<String>.filterImportsOnly() = filter { it.startsWith("import ") }
-
-private fun testDBtoDBMS(testDB: TestDB): DBMS = when (testDB) {
-    TestDB.MYSQL -> DBMS.MYSQL
-    TestDB.H2 -> DBMS.H2
-    TestDB.H2_MYSQL -> DBMS.H2
-    TestDB.SQLITE -> DBMS.SQLITE
-    TestDB.POSTGRESQL -> DBMS.POSTGRESQL
-    TestDB.POSTGRESQLNG -> DBMS.POSTGRESQL
-    TestDB.ORACLE -> DBMS.ORACLE
-    TestDB.SQLSERVER -> DBMS.SQLSERVER
-    TestDB.MARIADB -> DBMS.MARIADB
-}
 

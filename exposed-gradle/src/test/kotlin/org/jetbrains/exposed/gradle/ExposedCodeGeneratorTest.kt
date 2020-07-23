@@ -54,19 +54,16 @@ class ExposedCodeGeneratorFromExposedTest : DatabaseFromExposedFileTest() {
         )
     }
 
-    //@Test
-    // datetime() gets mapped to timestamp and is indistinguishable from timestamp()
-    // duration() gets mapped to long and is indistinguishable from it
-    //
+    @Test
     // SQLite doesn't have datetime types and uses text/real/integer instead,
     // making it indistinguishable from genuine text/real/integer columns
-    /*fun testDateTimeTypes() {
+    fun testDateTimeTypes() {
         testOnFile(
                 Paths.get("DateTimeTypes.kt"),
                 listOf(DateTimeTypes),
                 excludedDbList = listOf(TestDB.SQLITE)
         )
-    }*/
+    }
 
     @Test
     // can't specify the length in postgres

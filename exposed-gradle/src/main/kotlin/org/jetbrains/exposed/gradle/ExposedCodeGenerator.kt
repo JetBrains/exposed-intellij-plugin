@@ -11,7 +11,6 @@ import schemacrawler.schema.Table
 import java.math.BigDecimal
 import java.sql.*
 import java.sql.Date
-import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.util.*
@@ -22,8 +21,7 @@ import kotlin.reflect.KClass
 
 // TODO support schemas
 class ExposedCodeGenerator(
-        private val tables: List<Table>,
-        private val dbms: DBMS? = null
+        private val tables: List<Table>
 ) {
 
     // column to its property spec
@@ -137,17 +135,10 @@ class ExposedCodeGenerator(
             }
             Blob::class.javaObjectType -> initializeColumnParameters(ExposedBlob::class, "blob")
             UUID::class.javaObjectType -> initializeColumnParameters(UUID::class, "uuid")
-            Date::class.javaObjectType, LocalDate::class.javaObjectType -> initializeColumnParameters(LocalDate::class, "date", packageName = exposedDateTimePackageName)
-            Timestamp::class.javaObjectType -> {
-                if (dbms in listOf(DBMS.POSTGRESQL)) {
-                    initializeColumnParameters(Instant::class, "timestamp", packageName = exposedDateTimePackageName)
-                } else {
-                    initializeColumnParameters(LocalDateTime::class, "datetime", packageName = exposedDateTimePackageName)
-                }
-            }
-            // TODO can those even happen?
-            /*Duration::class.javaObjectType -> initializeColumnParameters(Duration::class, "duration", )
-            LocalDateTime::class.javaObjectType -> initializeColumnParameters(LocalDateTime::class, "datetime")*/
+            Date::class.javaObjectType, LocalDate::class.javaObjectType ->
+                initializeColumnParameters(LocalDate::class, "date", packageName = exposedDateTimePackageName)
+            Timestamp::class.javaObjectType, LocalDateTime::class.javaObjectType ->
+                initializeColumnParameters(LocalDateTime::class, "datetime", packageName = exposedDateTimePackageName)
             else -> {
                 val name = column.columnDataType.name.toLowerCase()
                 when {

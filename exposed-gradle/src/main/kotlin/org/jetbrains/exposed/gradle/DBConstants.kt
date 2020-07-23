@@ -10,12 +10,3 @@ object MaxSize {
     const val MAX_DECIMAL_SCALE = 16383
 }
 
-enum class DBMS {
-    H2,
-    SQLITE,
-    POSTGRESQL,
-    MYSQL,
-    MARIADB,
-    ORACLE,
-    SQLSERVER
-}
