@@ -9,8 +9,8 @@ import java.nio.file.Paths
 class SQLiteTest : DatabaseFromScriptTest() {
     private fun runSQLiteTest(filename: String, tableName: String? = null) {
         testFromScriptAgainstKtFile(
-                Paths.get(resourcesTestDataPath.toString(), "vartypes_sqlite", "vartypes.sql"),
-                Paths.get("vartypes_sqlite", filename),
+                Paths.get(resourcesTestDataPath.toString(), "sqlite", "vartypes.sql"),
+                Paths.get("sqlite", filename),
                 tableName = tableName,
                 excludedDbList = TestDB.enabledInTests() - listOf(TestDB.SQLITE)
         )
@@ -30,4 +30,7 @@ class SQLiteTest : DatabaseFromScriptTest() {
 
     @Test
     fun charTypes() = runSQLiteTest("CharTypes.kt", "char_types")
+
+    @Test
+    fun datetimeTypes() = runSQLiteTest("DatetimeTypes.kt", "datetime_types")
 }

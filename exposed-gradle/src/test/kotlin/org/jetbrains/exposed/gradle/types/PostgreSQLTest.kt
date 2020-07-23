@@ -9,8 +9,8 @@ import java.nio.file.Paths
 class PostgreSQLTest : DatabaseFromScriptTest() {
     private fun runPostgreSQLTest(filename: String, tableName: String? = null) {
         testFromScriptAgainstKtFile(
-                Paths.get(resourcesTestDataPath.toString(), "vartypes_psql", "vartypes.sql"),
-                Paths.get("vartypes_psql", filename),
+                Paths.get(resourcesTestDataPath.toString(), "psql", "vartypes.sql"),
+                Paths.get("psql", filename),
                 tableName = tableName,
                 excludedDbList = TestDB.enabledInTests() - listOf(TestDB.POSTGRESQL, TestDB.POSTGRESQLNG)
         )
@@ -36,5 +36,8 @@ class PostgreSQLTest : DatabaseFromScriptTest() {
 
     @Test
     fun miscTypes() = runPostgreSQLTest("MiscTypes.kt", "misc_types")
+
+    @Test
+    fun datetimeTypes() = runPostgreSQLTest("DatetimeTypes.kt", "datetime_types")
 
 }

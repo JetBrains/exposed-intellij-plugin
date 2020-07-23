@@ -9,8 +9,8 @@ import java.nio.file.Paths
 class H2Test : DatabaseFromScriptTest() {
     private fun runH2Test(filename: String, tableName: String? = null) {
         testFromScriptAgainstKtFile(
-                Paths.get(resourcesTestDataPath.toString(), "vartypes_h2", "vartypes.sql"),
-                Paths.get("vartypes_h2", filename),
+                Paths.get(resourcesTestDataPath.toString(), "h2", "vartypes.sql"),
+                Paths.get("h2", filename),
                 tableName = tableName,
                 excludedDbList = TestDB.enabledInTests() - listOf(TestDB.H2)
         )
@@ -51,4 +51,7 @@ class H2Test : DatabaseFromScriptTest() {
 
     @Test
     fun binaryTypes() = runH2Test("BinaryTypes.kt", "binary_types")
+
+    @Test
+    fun datetimeTypes() = runH2Test("DatetimeTypes.kt", "datetime_types")
 }

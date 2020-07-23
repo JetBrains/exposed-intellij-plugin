@@ -54,6 +54,20 @@ class ExposedCodeGeneratorFromExposedTest : DatabaseFromExposedFileTest() {
         )
     }
 
+    //@Test
+    // datetime() gets mapped to timestamp and is indistinguishable from timestamp()
+    // duration() gets mapped to long and is indistinguishable from it
+    //
+    // SQLite doesn't have datetime types and uses text/real/integer instead,
+    // making it indistinguishable from genuine text/real/integer columns
+    /*fun testDateTimeTypes() {
+        testOnFile(
+                Paths.get("DateTimeTypes.kt"),
+                listOf(DateTimeTypes),
+                excludedDbList = listOf(TestDB.SQLITE)
+        )
+    }*/
+
     @Test
     // can't specify the length in postgres
     fun miscTypesPostgres() {
@@ -140,9 +154,9 @@ class ExposedCodeGeneratorFromScriptTest : DatabaseFromScriptTest() {
     @Test
     // this test can be used for making sure all table references are established correctly
     fun chinook() = testFromScriptAgainstKtFile(
-            Paths.get(resourcesTestDataPath.toString(), "vartypes_sqlite", "chinook.sql"),
-            Paths.get("vartypes_sqlite", "Chinook.kt"),
+            Paths.get(resourcesTestDataPath.toString(), "sqlite", "chinook.sql"),
+            Paths.get("sqlite", "Chinook.kt"),
             excludedDbList = TestDB.enabledInTests() - listOf(TestDB.SQLITE)
     )
-}
 
+}

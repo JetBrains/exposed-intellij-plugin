@@ -4,6 +4,7 @@ DROP TABLE IF EXISTS floating_point_types;
 DROP TABLE IF EXISTS miscellanious_types;
 DROP TABLE IF EXISTS decimal_types;
 DROP TABLE IF EXISTS integer_types;
+DROP TABLE IF EXISTS datetime_types;
 
 CREATE TABLE long_types(
 l1 bigint NOT NULL,
@@ -43,3 +44,8 @@ i5 smallint NOT NULL,
 i6 int2 NOT NULL
 );
 INSERT INTO integer_types VALUES(2147483647,2147483647,2147483647,127,65535,65535);
+
+CREATE TABLE datetime_types(
+d1 datetime NOT NULL,
+d2 date NOT NULL
+);
