@@ -2,347 +2,392 @@ package org.jetbrains.exposed.gradle
 
 import com.squareup.kotlinpoet.*
 import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
-import org.jetbrains.exposed.dao.id.*
-import org.jetbrains.exposed.sql.`java-time`.JavaLocalDateColumnType
+import org.jetbrains.exposed.dao.id.IdTable
+import org.jetbrains.exposed.dao.id.IntIdTable
+import org.jetbrains.exposed.dao.id.LongIdTable
+import org.jetbrains.exposed.dao.id.UUIDTable
+import org.jetbrains.exposed.dao.id.EntityID
+import org.jetbrains.exposed.sql.`java-time`.date
+import org.jetbrains.exposed.sql.`java-time`.datetime
 import org.jetbrains.exposed.sql.statements.api.ExposedBlob
 import org.slf4j.LoggerFactory
 import schemacrawler.schema.Column
 import schemacrawler.schema.Table
 import java.math.BigDecimal
-import java.sql.*
+import java.sql.Blob
+import java.sql.Clob
+import java.sql.Timestamp
 import java.sql.Date
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.util.*
-import java.util.regex.Pattern
-import kotlin.collections.HashMap
-import kotlin.collections.LinkedHashMap
 import kotlin.reflect.KClass
+import kotlin.reflect.KFunction
+import kotlin.reflect.full.memberFunctions
+import kotlin.reflect.full.valueParameters
+import kotlin.reflect.jvm.javaMethod
+import org.jetbrains.exposed.sql.Column as ExposedColumn
+import org.jetbrains.exposed.sql.Table as ExposedTable
+
 
 // TODO support schemas
-class ExposedCodeGenerator(
-        private val tables: List<Table>
-) {
+class ExposedCodeGenerator(private val tables: List<Table>) {
+    private val columnToPropertySpec = hashMapOf<Column, PropertySpec>()
+    private val columnToTableSpec = hashMapOf<Column, TypeSpec>()
 
-    // column to its property spec
-    private val processedColumns: LinkedHashMap<Column, PropertySpec> = LinkedHashMap()
-    // column to its parent table spec
-    private val columnsToTables: HashMap<Column, TypeSpec> = HashMap()
+    inner class TableBuilder(table: Table) {
+        private val tableInfo = TableInfo(table)
+        private val builder = TypeSpec.objectBuilder(getObjectNameForTable(table))
 
-
-    private fun generateUnsupportedTypeErrorMessage(column: Column) =
-            "Unable to map column ${column.name} of type ${column.columnDataType.fullName} to an Exposed column object"
-
-    private fun generateColumnInitializerCodeBlock(
-            columnName: String,
-            packageName: String,
-            functionName: String,
-            vararg arguments: Any
-    ): CodeBlock = if (arguments.isEmpty()) {
-        // TODO fix this
-        CodeBlock.of("%M(\"$columnName\")", MemberName(packageName, functionName))
-    } else {
-        CodeBlock.of("%M(\"$columnName\", ${arguments.joinToString(", ")})", MemberName(packageName, functionName))
-    }
-
-    private data class ColumnDefinition(
-            val columnKClass: KClass<*>,
-            val columnInitializationBlock: CodeBlock,
-            val nullable: Boolean
-    )
-
-    private fun generateColumnDefinition(column: Column): ColumnDefinition {
-        val columnName = getColumnName(column)
-
-        var columnInitializerBlock: CodeBlock? = null
-        var columnType: KClass<*>? = null
-
-        fun initializeColumnParameters(columnTypeClass: KClass<*>, functionName: String, vararg arguments: Any, packageName: String = "") {
-            columnInitializerBlock = generateColumnInitializerCodeBlock(columnName, packageName, functionName, *arguments)
-            columnType = columnTypeClass
+        private fun generateExposedIdTableDeclaration() {
+            val idColumn = tableInfo.idColumn!! // it's guaranteed to be non-null
+            val idColumnInfo = ColumnInfo(idColumn)
+            val idColumnClass = idColumnInfo.columnKClass
+            if (tableInfo.superclass == IdTable::class) {
+                builder.superclass(tableInfo.superclass.parameterizedBy(idColumnClass!!))
+                builder.addSuperclassConstructorParameter("%S", tableInfo.tableName)
+            } else {
+                builder.superclass(tableInfo.superclass)
+                builder.addSuperclassConstructorParameter("%S, %S", tableInfo.tableName, getColumnName(idColumn))
+            }
         }
 
+        fun generateExposedTableDeclaration() {
+            if (tableInfo.idColumn != null) {
+                generateExposedIdTableDeclaration()
+            } else {
+                builder.superclass(tableInfo.superclass)
+                builder.addSuperclassConstructorParameter("%S", tableInfo.tableName)
+            }
+        }
 
-        when (column.columnDataType.typeMappedClass) {
-            Integer::class.javaObjectType -> {
-                when (column.columnDataType.name.toLowerCase()) {
-                    "tinyint" -> initializeColumnParameters(Byte::class, "byte")
-                    "smallint", "int2" -> initializeColumnParameters(Short::class, "short")
-                    "int8" -> initializeColumnParameters(Long::class, "long")
-                    else -> initializeColumnParameters(Int::class, "integer")
+        fun generateExposedTableColumns() {
+            val idColumn = tableInfo.idColumn
+            val columns = tableInfo.table.columns
+            for (column in columns) {
+                try {
+                    val columnBuilder = if (column == idColumn) {
+                        IdColumnBuilder(column)
+                    } else {
+                        ColumnBuilder(column)
+                    }
+                    columnBuilder.generateExposedColumnInitializer()
+                    val columnPropertySpec = columnBuilder.build()
+
+                    if (column != idColumn || tableInfo.superclass !in listOf(IntIdTable::class, LongIdTable::class, UUIDTable::class)) {
+                        builder.addProperty(columnPropertySpec)
+                    }
+
+                    columnToPropertySpec[column] = columnPropertySpec
+                } catch (e: MetadataUnsupportedTypeException) {
+                     logger.error("Unsupported type", e)
                 }
             }
-            Long::class.javaObjectType -> initializeColumnParameters(Long::class, "long")
-            BigDecimal::class.java -> {
-                val precision = if (column.size >= 0 && column.size <= MaxSize.MAX_DECIMAL_PRECISION) {
-                    column.size
+        }
+
+        fun generateExposedTablePrimaryKey() {
+            if (tableInfo.primaryKeyColumns.isEmpty() || tableInfo.superclass in listOf(IntIdTable::class, LongIdTable::class, UUIDTable::class)) {
+                return
+            }
+
+            val primaryKeys = tableInfo.primaryKeyColumns.map {
+                columnToPropertySpec[it]?.name
+                        ?: throw MetadataReferencedColumnNotFoundException("Primary key column ${it.fullName} not found.")
+            }
+            val primaryKey =
+                    PropertySpec.builder("primaryKey", ClassName("", "PrimaryKey"), KModifier.OVERRIDE)
+                            .initializer(CodeBlock.of("%M(${primaryKeys.joinToString(", ")})", MemberName("", "PrimaryKey")))
+                            .build()
+            builder.addProperty(primaryKey)
+        }
+
+        fun build(): TypeSpec {
+            val exposedTable = builder.build()
+            for (column in tableInfo.table.columns) {
+                columnToTableSpec[column] = exposedTable
+            }
+            return exposedTable
+        }
+    }
+
+    open inner class ColumnBuilder(column: Column) {
+        protected val columnInfo = ColumnInfo(column)
+        protected open val builder = PropertySpec.builder(
+                getPropertyNameForColumn(column),
+                ExposedColumn::class.asTypeName().parameterizedBy(columnInfo.columnKClass!!.asTypeName().copy(nullable = columnInfo.nullable))
+        )
+
+        open fun generateExposedColumnInitializer() {
+            val initializerBlock = buildCodeBlock {
+                generateExposedColumnFunctionCall(columnInfo)
+                generateExposedColumnProperties(columnInfo)
+            }
+
+            builder.initializer(initializerBlock)
+        }
+
+        open fun CodeBlock.Builder.generateExposedColumnFunctionCall(columnInfo: ColumnInfo) {
+            val column = columnInfo.column
+            val columnKClass = columnInfo.columnKClass!!
+            val columnExposedFunction = columnInfo.columnExposedFunction!!
+            val columnExposedPackage = columnExposedFunction.javaMethod!!.declaringClass.`package`
+            val packageName = if (columnExposedPackage == exposedPackage) {
+                ""
+            } else {
+                columnExposedPackage.name
+            }
+            val memberName = MemberName(packageName, columnExposedFunction.name)
+
+            if (columnInfo.columnExposedFunction!!.valueParameters.size > 1) {
+                val arguments = getColumnFunctionArguments()
+                when (columnKClass) {
+                    // decimal -> precision, scale
+                    BigDecimal::class -> {
+                        val precision: String
+                        val scale: String
+                        if (arguments.isNotEmpty()) {
+                            precision = arguments[0]
+                            scale = arguments[1]
+                        } else {
+                            precision = if (column.size >= 0 && column.size <= MaxSize.MAX_DECIMAL_PRECISION) {
+                                column.size
+                            } else {
+                                MaxSize.MAX_DECIMAL_PRECISION
+                            }.toString()
+                            scale = when {
+                                // it's unlikely that this is to ever happen but just to cover the possibility
+                                column.decimalDigits > MaxSize.MAX_DECIMAL_SCALE -> MaxSize.MAX_DECIMAL_SCALE
+                                column.decimalDigits < 0 -> 0
+                                else -> column.decimalDigits
+                            }.toString()
+                        }
+                        add("%M(%S, $precision, $scale)", memberName, columnInfo.columnName)
+                    }
+                    // char, varchar, binary -> length
+                    String::class, ByteArray::class -> {
+                        if (columnExposedFunction.name in listOf("char", "varchar", "binary")) {
+                            val size = when {
+                                arguments.isNotEmpty() -> arguments[0]
+                                column.size >= 0 && column.size <= MaxSize.MAX_VARCHAR_SIZE -> column.size.toString()
+                                else -> MaxSize.MAX_VARCHAR_SIZE.toString()
+                            }
+                            add("%M(%S, $size)", memberName, columnInfo.columnName)
+                        } else {
+                            add("%M(%S)", memberName, columnInfo.columnName)
+                        }
+
+                    } else -> add("%M(%S)", memberName, columnInfo.columnName)
+                }
+            } else {
+                add("%M(%S)", memberName, columnInfo.columnName)
+            }
+        }
+
+        open fun CodeBlock.Builder.generateExposedColumnProperties(columnInfo: ColumnInfo) {
+            val column = columnInfo.column
+            if (column.isAutoIncremented) {
+                // TODO is there a way to access those via reflection?
+                add(".%M()", MemberName("", "autoIncrement"))
+            }
+
+            if (column.referencedColumn != null) {
+                val referencedColumnProperty = columnToPropertySpec[column.referencedColumn]
+                        ?: throw MetadataReferencedColumnNotFoundException(
+                                "Column ${column.referencedColumn.fullName} referenced by ${column.fullName} not found."
+                        )
+                val referencedColumnTable = columnToTableSpec[column.referencedColumn]
+                if (column.parent == column.referencedColumn.parent) {
+                    add(".%M(%N)",
+                            MemberName("", "references"),
+                            referencedColumnProperty)
                 } else {
-                    MaxSize.MAX_DECIMAL_PRECISION
+                    add(".%M(%N.%N)",
+                            MemberName("", "references"),
+                            referencedColumnTable, // should be not null
+                            referencedColumnProperty)
                 }
-                val scale = when {
-                    // it's unlikely that this is to ever happen but just to cover the possibility
-                    column.decimalDigits > MaxSize.MAX_DECIMAL_SCALE -> MaxSize.MAX_DECIMAL_SCALE
-                    column.decimalDigits < 0 -> 0
-                    else -> column.decimalDigits
-                }
-                initializeColumnParameters(BigDecimal::class, "decimal", precision, scale)
             }
-            Float::class.javaObjectType-> initializeColumnParameters(Float::class, "float")
-            Double::class.javaObjectType -> {
+
+            if (column.isNullable && !column.isPartOfPrimaryKey) {
+                add(".%M()", MemberName("", "nullable"))
+            }
+        }
+
+        private fun getColumnFunctionArguments(): List<String> {
+            // for columns like 'varchar(30)' the arguments are contained in the full name
+            val columnType = columnInfo.column.columnDataType.fullName
+            val arguments = mutableListOf<String>()
+
+            val argumentsStart = columnType.indexOfFirst { it == '(' }
+            val argumentsEnd = columnType.indexOfLast { it == ')' }
+            if (argumentsStart != -1 && argumentsEnd != -1) {
+                val argumentsString = columnType.substring(argumentsStart + 1, argumentsEnd)
+                arguments.addAll(argumentsString.split(",").map { it.trim() })
+            }
+
+            return arguments
+        }
+
+        fun build() = builder.build()
+    }
+
+    inner class IdColumnBuilder(column: Column) : ColumnBuilder(column) {
+        override val builder = PropertySpec.builder(
+                getPropertyNameForColumn(column),
+                ExposedColumn::class.asTypeName().parameterizedBy(EntityID::class.asTypeName().parameterizedBy(columnInfo.columnKClass!!.asTypeName())),
+                KModifier.OVERRIDE
+        )
+
+        override fun CodeBlock.Builder.generateExposedColumnProperties(columnInfo: ColumnInfo) {
+            // it can't be nullable
+            // it can't be auto-incremented because that's only for int and long and it's handled by respective classes
+            // TODO can it reference other columns?
+            add(".%M()", MemberName("", "entityId"))
+        }
+    }
+
+    data class TableInfo(val table: Table) {
+        val primaryKeyColumns: List<Column> = if (table.hasPrimaryKey()) table.primaryKey.columns else emptyList()
+        val idColumn: Column? = if (primaryKeyColumns.size == 1) {
+            val column = primaryKeyColumns[0]
+            val columnInfo = ColumnInfo(column)
+            val columnExposedClass = columnInfo.columnKClass
+            if ((columnExposedClass == Int::class || columnExposedClass == Long::class) && !column.isAutoIncremented) {
+                null
+            } else {
+                column
+            }
+        } else {
+            null
+        }
+        val tableName = getTableName(table)
+        val superclass = if (idColumn == null) {
+            ExposedTable::class
+        } else {
+            when (ColumnInfo(idColumn).columnKClass) {
+                Int::class -> IntIdTable::class
+                Long::class -> LongIdTable::class
+                UUID::class -> UUIDTable::class
+                else -> IdTable::class
+            }
+        }
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    data class ColumnInfo(val column: Column) {
+        val columnName = getColumnName(column)
+        var columnKClass: KClass<*>? = null
+            private set
+
+        var columnExposedFunction: KFunction<*>? = null
+            private set
+
+        var nullable: Boolean = column.isNullable && !column.isPartOfPrimaryKey
+
+        init {
+            val exposedChar: KFunction<ExposedColumn<String>> = ExposedTable::class.memberFunctions.find {
+                func -> func.name == "char" && func.parameters.any { p -> p.name == "length" }
+            } as KFunction<ExposedColumn<String>>
+            val exposedBinary: KFunction<ExposedColumn<ByteArray>> = ExposedTable::class.memberFunctions.find {
+                func -> func.name == "binary" && func.parameters.any { p -> p.name == "length" }
+            } as KFunction<ExposedColumn<ByteArray>>
+
+            fun generateUnsupportedTypeErrorMessage(column: Column) =
+                    "Unable to map column ${column.name} of type ${column.columnDataType.fullName} to an Exposed column object"
+
+            fun <T : Any> initializeColumnParameters(columnClass: KClass<T>, columnFunction: KFunction<ExposedColumn<T>>) {
+                columnKClass = columnClass
+                columnExposedFunction = columnFunction
+            }
+
+            fun initializeInteger() {
+                when (column.columnDataType.name.toLowerCase()) {
+                    "tinyint" -> initializeColumnParameters(Byte::class, ExposedTable::byte)
+                    "smallint", "int2" -> initializeColumnParameters(Short::class, ExposedTable::short)
+                    "int8" -> initializeColumnParameters(Long::class, ExposedTable::long)
+                    else -> initializeColumnParameters(Int::class, ExposedTable::integer)
+                }
+            }
+
+            fun initializeDouble() {
                 val name = column.columnDataType.name.toLowerCase()
-                val matcher = numericArgumentsPattern.matcher(name)
-                if (matcher.find() && (name.contains("decimal") || name.contains("numeric"))) {
+                if (name.contains("decimal") || name.contains("numeric")) {
                     initializeColumnParameters(
                             BigDecimal::class,
-                            "decimal",
-                            *matcher.group(1).split(",").map { it.trim() }.toTypedArray()
+                            ExposedTable::decimal
                     )
                 } else {
-                    initializeColumnParameters(Double::class, "double")
+                    initializeColumnParameters(Double::class, ExposedTable::double)
                 }
             }
-            Boolean::class.javaObjectType -> initializeColumnParameters(Boolean::class, "bool")
-            String::class.java -> {
+
+            fun initializeString() {
                 val name = column.columnDataType.name.toLowerCase()
-                val matcher = numericArgumentsPattern.matcher(name)
-                val size = when {
-                    matcher.find() -> matcher.group(1).takeWhile { it.isDigit() }.toInt()
-                    column.size > 0 -> column.size
-                    else -> MaxSize.MAX_VARCHAR_SIZE
-                }
                 when {
-                    name.contains("varchar") || name.contains("varying") -> initializeColumnParameters(String::class, "varchar", size)
-                    name.contains("char") -> initializeColumnParameters(String::class, "char", size)
-                    name.contains("text") -> initializeColumnParameters(String::class, "text")
+                    name.contains("varchar") || name.contains("varying") ->
+                        initializeColumnParameters(String::class, ExposedTable::varchar)
+                    name.contains("char") ->
+                        initializeColumnParameters(String::class, exposedChar)
+                    name.contains("text") -> initializeColumnParameters(String::class, ExposedTable::text)
                     name.contains("time") ->
-                        initializeColumnParameters(LocalDateTime::class, "datetime", packageName = exposedDateTimePackageName)
+                        initializeColumnParameters(LocalDateTime::class, ExposedTable::datetime)
                     name.contains("date") ->
-                        initializeColumnParameters(LocalDate::class, "date", packageName = exposedDateTimePackageName)
+                        initializeColumnParameters(LocalDate::class, ExposedTable::date)
                     name.contains("binary") || name.contains("bytea") ->
-                        initializeColumnParameters(ByteArray::class, "binary", size)
-                    // TODO timestamp, duration
+                        initializeColumnParameters(ByteArray::class, exposedBinary)
                     else -> throw MetadataUnsupportedTypeException(generateUnsupportedTypeErrorMessage(column))
                 }
             }
-            Clob::class.javaObjectType -> {
-                initializeColumnParameters(String::class, "text")
-            }
-            Object::class.javaObjectType -> {
+
+            fun initializeObject() {
                 when (column.columnDataType.name.toLowerCase()) {
-                    "uuid" -> initializeColumnParameters(UUID::class, "uuid")
+                    "uuid" -> initializeColumnParameters(UUID::class, ExposedTable::uuid)
                     else -> throw MetadataUnsupportedTypeException(generateUnsupportedTypeErrorMessage(column))
                 }
             }
-            Blob::class.javaObjectType -> initializeColumnParameters(ExposedBlob::class, "blob")
-            UUID::class.javaObjectType -> initializeColumnParameters(UUID::class, "uuid")
-            Date::class.javaObjectType, LocalDate::class.javaObjectType ->
-                initializeColumnParameters(LocalDate::class, "date", packageName = exposedDateTimePackageName)
-            Timestamp::class.javaObjectType, LocalDateTime::class.javaObjectType ->
-                initializeColumnParameters(LocalDateTime::class, "datetime", packageName = exposedDateTimePackageName)
-            else -> {
-                val name = column.columnDataType.name.toLowerCase()
-                when {
-                    name.contains("uuid") -> initializeColumnParameters(UUID::class, "uuid")
-                    // can be 'varbinary'
-                    name.contains("binary") || name.contains("bytea") -> {
-                        val size = if (column.size > 0) column.size else MaxSize.MAX_BINARY
-                        initializeColumnParameters(ByteArray::class, "binary", size)
+
+
+            when (column.columnDataType.typeMappedClass) {
+                Integer::class.javaObjectType -> initializeInteger()
+                Long::class.javaObjectType -> initializeColumnParameters(Long::class, ExposedTable::long)
+                BigDecimal::class.javaObjectType -> initializeColumnParameters(BigDecimal::class, ExposedTable::decimal)
+                Float::class.javaObjectType -> initializeColumnParameters(Float::class, ExposedTable::float)
+                Double::class.javaObjectType -> initializeDouble()
+                Boolean::class.javaObjectType -> initializeColumnParameters(Boolean::class, ExposedTable::bool)
+                String::class.javaObjectType -> initializeString()
+                Clob::class.javaObjectType -> initializeColumnParameters(String::class, ExposedTable::text)
+                Blob::class.javaObjectType -> initializeColumnParameters(ExposedBlob::class, ExposedTable::blob)
+                UUID::class.javaObjectType -> initializeColumnParameters(UUID::class, ExposedTable::uuid)
+                Object::class.javaObjectType -> initializeObject()
+                Date::class.javaObjectType, LocalDate::class.javaObjectType ->
+                    initializeColumnParameters(LocalDate::class, ExposedTable::date)
+                Timestamp::class.javaObjectType, LocalDateTime::class.javaObjectType ->
+                    initializeColumnParameters(LocalDateTime::class, ExposedTable::datetime)
+                else -> {
+                    val name = column.columnDataType.name.toLowerCase()
+                    when {
+                        name.contains("uuid") -> initializeColumnParameters(UUID::class, ExposedTable::uuid)
+                        // can be 'varbinary'
+                        name.contains("binary") || name.contains("bytea") -> {
+                            initializeColumnParameters(ByteArray::class, exposedBinary)
+                        }
                     }
                 }
             }
         }
-
-        if (columnInitializerBlock == null || columnType == null) {
-            throw MetadataUnsupportedTypeException(generateUnsupportedTypeErrorMessage(column))
-        }
-
-        if (column.isAutoIncremented) {
-            columnInitializerBlock = columnInitializerBlock!!.append(CodeBlock.of(
-                    ".%M()",
-                    MemberName("", "autoIncrement")
-            ))
-        }
-
-        if (column.referencedColumn != null) {
-            val referencedColumnProperty = processedColumns[column.referencedColumn]
-                    ?: throw MetadataReferencedColumnNotFoundException(
-                            "Column ${column.referencedColumn.fullName} referenced by ${column.fullName} not found."
-                    )
-            val referencedColumnTable = columnsToTables[column.referencedColumn]
-            val blockToAppend = if (column.parent == column.referencedColumn.parent) {
-                CodeBlock.of(
-                        ".%M(%N)",
-                        MemberName("", "references"),
-                        referencedColumnProperty
-                )
-            } else {
-                CodeBlock.of(
-                        ".%M(%N.%N)",
-                        MemberName("", "references"),
-                        referencedColumnTable, // should be not null
-                        referencedColumnProperty
-                )
-            }
-            columnInitializerBlock = columnInitializerBlock!!.append(blockToAppend)
-        }
-
-        // even though some DBs, like SQLite, allow nullable primary keys to support legacy systems,
-        // I don't think we should
-        if (column.isNullable && !column.isPartOfPrimaryKey) {
-            columnInitializerBlock = columnInitializerBlock!!.append(CodeBlock.of(
-                    ".%M()",
-                    MemberName("", "nullable")
-            ))
-        }
-
-        return ColumnDefinition(columnType!!, columnInitializerBlock!!, column.isNullable && !column.isPartOfPrimaryKey)
     }
 
-    private fun CodeBlock.append(codeBlock: CodeBlock): CodeBlock {
-        return this.toBuilder().add(codeBlock).build()
-    }
 
-    private fun generatePropertyForColumn(column: Column): PropertySpec {
-        val columnVariableName = getPropertyNameForColumn(column)
-        val columnDefinition = generateColumnDefinition(column)
-
-        return PropertySpec.Companion.builder(
-                columnVariableName,
-                org.jetbrains.exposed.sql.Column::class.asTypeName().parameterizedBy(
-                        columnDefinition.columnKClass.asTypeName().copy(nullable = columnDefinition.nullable)
-                )
-        ).initializer(columnDefinition.columnInitializationBlock).build()
-    }
-
-    // TODO extension method?
-    private fun addColumns(table: Table, tableObjectBuilder: TypeSpec.Builder, idColumn: Column? = null) {
-        for (column in table.columns) {
-            if (column == idColumn) {
-                continue
-            }
-            try {
-                val columnProperty = generatePropertyForColumn(column)
-                tableObjectBuilder.addProperty(columnProperty)
-                processedColumns[column] = columnProperty
-            } catch (e: MetadataUnsupportedTypeException) {
-                // TODO log the stacktrace or not? technically this should be readable by the client, so... not?
-                logger.error("Unsupported type", e)
-            }
-        }
-    }
-
-    private fun generateIdTable(table: Table, idColumn: Column, tableObjectBuilder: TypeSpec.Builder){
-        val tableName = getTableName(table)
-
-        val idColumnDefinition = generateColumnDefinition(idColumn)
-        val columnPropertyBuilder = PropertySpec.builder("id", org.jetbrains.exposed.sql.Column::class.asClassName()
-                .parameterizedBy(EntityID::class.parameterizedBy(idColumnDefinition.columnKClass)))
-
-        val superclass = when (idColumn.columnDataType.typeMappedClass) {
-            Integer::class.javaObjectType -> IntIdTable::class
-            Long::class.javaObjectType -> LongIdTable::class
-            else -> if (idColumn.columnDataType.name.equals("uuid", ignoreCase = true)) UUIDTable::class else IdTable::class
-        }
-
-        if (superclass == IdTable::class) {
-            tableObjectBuilder.superclass(superclass.parameterizedBy(idColumnDefinition.columnKClass))
-            tableObjectBuilder.addSuperclassConstructorParameter(
-                    "%S",
-                    tableName
-            )
-
-            val idProperty = columnPropertyBuilder
-                    .addModifiers(KModifier.OVERRIDE)
-                    .initializer(idColumnDefinition.columnInitializationBlock
-                            .append(CodeBlock.of(".%M()", MemberName("", "entityId")))
-                    )
-                    .build()
-            tableObjectBuilder.addProperty(idProperty)
-            processedColumns[idColumn] = idProperty
-
-            generatePrimaryKey(listOf(idColumn), tableObjectBuilder)
-        } else {
-            tableObjectBuilder.superclass(superclass)
-            tableObjectBuilder.addSuperclassConstructorParameter(
-                    "%S, %S",
-                    tableName,
-                    getColumnName(idColumn) // to specify the id column name, which might not be "id"
-            )
-            processedColumns[idColumn] = columnPropertyBuilder.build()
-        }
-
-        addColumns(table, tableObjectBuilder, idColumn)
-    }
-
-    // TODO extension method?
-    private fun generatePrimaryKey(
-            primaryKeyColumns: List<Column>,
-            tableObjectBuilder: TypeSpec.Builder
-    ) {
-        val primaryKeys = primaryKeyColumns.map {
-            processedColumns[it]?.name
-                    ?: throw MetadataReferencedColumnNotFoundException("Primary key column ${it.fullName} not found.")
-        }
-        val primaryKey = PropertySpec.builder(
-                "primaryKey",
-                ClassName("", "PrimaryKey"),
-                KModifier.OVERRIDE
-        )
-                .initializer(CodeBlock.of("%M(${primaryKeys.joinToString(", ")})", MemberName("", "PrimaryKey")))
-                .build()
-        tableObjectBuilder.addProperty(primaryKey)
-    }
-
-    private fun generateTableObjectDeclaration(table: Table, tableObjectBuilder: TypeSpec.Builder) {
-        val tableName = getTableName(table)
-        val superclass = org.jetbrains.exposed.sql.Table::class
-        tableObjectBuilder.superclass(superclass)
-        tableObjectBuilder.addSuperclassConstructorParameter(
-                "%S",
-                tableName
-        )
-    }
-
-    private fun generatePrimaryKeyTable(table: Table, primaryKeyColumns: List<Column>, tableObjectBuilder: TypeSpec.Builder) {
-        fun generateTable() {
-            generateTableObjectDeclaration(table, tableObjectBuilder)
-            addColumns(table, tableObjectBuilder)
-            generatePrimaryKey(primaryKeyColumns, tableObjectBuilder)
-        }
-
-        if (primaryKeyColumns.size > 1) {
-            generateTable()
-        } else {
-            val idColumn = primaryKeyColumns[0]
-            val columnDefinition = generateColumnDefinition(idColumn)
-            if ((columnDefinition.columnKClass == Int::class || columnDefinition.columnKClass == Long::class) && !idColumn.isAutoIncremented) {
-                generateTable()
-            } else {
-                generateIdTable(table, idColumn, tableObjectBuilder)
-            }
-        }
-    }
-
+    // returns a TypeSpec used for Exposed Kotlin code generation
     private fun generateExposedTable(table: Table): TypeSpec {
-        val tableObjectName = getObjectNameForTable(table)
-        val tableObjectBuilder = TypeSpec.objectBuilder(tableObjectName)
+        val builder = TableBuilder(table)
 
-        val primaryKeyColumns = table.columns.filter { it.isPartOfPrimaryKey }
-        if (primaryKeyColumns.isNotEmpty()) {
-            generatePrimaryKeyTable(table, primaryKeyColumns, tableObjectBuilder)
-        } else {
-            generateTableObjectDeclaration(table, tableObjectBuilder)
-            addColumns(table, tableObjectBuilder)
-        }
+        builder.generateExposedTableDeclaration()
+        builder.generateExposedTableColumns()
+        builder.generateExposedTablePrimaryKey()
 
-        val tableObject = tableObjectBuilder.build()
-        for (column in table.columns) {
-            columnsToTables[column] = tableObject
-        }
-
-        return tableObject
+        return builder.build()
     }
-
 
     fun generateExposedTables(databaseName: String): FileSpec {
         val fileSpec = FileSpec.builder("", "${databaseName.toCamelCase(true)}.kt")
@@ -353,10 +398,6 @@ class ExposedCodeGenerator(
 
     companion object {
         private val logger = LoggerFactory.getLogger("MetadataGetterLogger")
-
-        private val numericArgumentsPattern = Pattern.compile("\\((([0-9])+([, ]*[0-9])*)\\)")
-
-        private val exposedPackageName = org.jetbrains.exposed.sql.Table::class.java.packageName
-        private val exposedDateTimePackageName = JavaLocalDateColumnType::class.java.packageName
+        private val exposedPackage = ExposedTable::class.java.`package`
     }
 }
