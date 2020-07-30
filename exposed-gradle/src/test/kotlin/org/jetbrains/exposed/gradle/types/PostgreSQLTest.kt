@@ -10,7 +10,7 @@ import org.jetbrains.exposed.sql.`java-time`.JavaLocalDateTimeColumnType
 import org.junit.Test
 import java.nio.file.Paths
 
-class PostgreSQLTestByCompilation : ExposedCodeGeneratorFromScriptTest() {
+class PostgreSQLTest : ExposedCodeGeneratorFromScriptTest() {
     private fun runH2Test(tableName: String, checkTablesBlock: (KotlinCompilation.Result) -> Unit) {
         testByCompilation(
                 "vartypes.sql",

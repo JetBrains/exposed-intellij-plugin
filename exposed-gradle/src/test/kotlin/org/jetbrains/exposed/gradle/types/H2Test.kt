@@ -11,7 +11,7 @@ import org.jetbrains.exposed.sql.`java-time`.JavaLocalDateTimeColumnType
 import org.junit.Test
 import java.nio.file.Paths
 
-class H2TestByCompilation : ExposedCodeGeneratorFromScriptTest() {
+class H2Test : ExposedCodeGeneratorFromScriptTest() {
     private fun runH2Test(tableName: String, checkTablesBlock: (KotlinCompilation.Result) -> Unit) {
         testByCompilation(
                 "vartypes.sql",
@@ -160,5 +160,4 @@ class H2TestByCompilation : ExposedCodeGeneratorFromScriptTest() {
             checkColumnProperty(result, tableObject, "m1", "m1", UUIDColumnType())
         })
     }
-
 }
