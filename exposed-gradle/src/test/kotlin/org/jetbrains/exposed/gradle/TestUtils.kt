@@ -1,5 +1,6 @@
 package org.jetbrains.exposed.gradle
 
+import com.squareup.kotlinpoet.FileSpec
 import org.jetbrains.exposed.gradle.tests.TestDB
 import org.junit.Assert
 import java.io.File
@@ -10,13 +11,7 @@ import java.nio.file.Paths
 val generalTestDataPath: Path = Paths.get("src", "test", "kotlin", "org", "jetbrains", "exposed", "gradle", "databases")
 val resourcesTestDataPath: Path = Paths.get("src", "test", "resources", "databases")
 
-fun checkDatabaseMetadataAgainstFile(
-        db: TestDB,
-        testDataDirectoryPath: Path,
-        testDataFilepath: Path,
-        tableName: String? = null,
-        fileParentPath: String = "" // TODO path but string? bad
-) {
+fun getDatabaseExposedFileSpec(db: TestDB, tableName: String? = null): FileSpec {
     val metadataGetter = MetadataGetter(db.connection, db.user, db.pass)
     val tables = metadataGetter.getTables().filterUtilTables()
     val exposedCodeGenerator = if (tableName != null) {
@@ -24,7 +19,17 @@ fun checkDatabaseMetadataAgainstFile(
     } else {
         ExposedCodeGenerator(tables)
     }
-    val fileSpec = exposedCodeGenerator.generateExposedTables(db.name)
+    return exposedCodeGenerator.generateExposedTables(db.name)
+}
+
+fun checkDatabaseMetadataAgainstFile(
+        db: TestDB,
+        testDataDirectoryPath: Path,
+        testDataFilepath: Path,
+        tableName: String? = null,
+        fileParentPath: String = "" // TODO path but string? bad
+) {
+    val fileSpec = getDatabaseExposedFileSpec(db, tableName)
     val sb = StringBuilder()
     fileSpec.writeTo(sb)
     val fileLines = sb.splitToSequence("\n").toList()
