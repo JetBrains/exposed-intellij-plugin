@@ -1,7 +1,6 @@
 package org.jetbrains.exposed.gradle.types
 
 import com.tschuchort.compiletesting.KotlinCompilation
-import org.jetbrains.exposed.gradle.DatabaseFromScriptTest
 import org.jetbrains.exposed.gradle.ExposedCodeGeneratorFromScriptTest
 import org.jetbrains.exposed.gradle.resourcesTestDataPath
 import org.jetbrains.exposed.gradle.tests.TestDB
@@ -11,7 +10,7 @@ import org.jetbrains.exposed.sql.`java-time`.JavaLocalDateTimeColumnType
 import org.junit.Test
 import java.nio.file.Paths
 
-class SQLiteTestC : ExposedCodeGeneratorFromScriptTest() {
+class SQLiteTest : ExposedCodeGeneratorFromScriptTest() {
     private fun runSQLiteTest(tableName: String, checkTablesBlock: (KotlinCompilation.Result) -> Unit) {
         testByCompilation(
                 "vartypes.sql",
