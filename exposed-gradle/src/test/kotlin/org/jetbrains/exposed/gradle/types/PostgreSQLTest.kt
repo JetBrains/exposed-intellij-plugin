@@ -11,7 +11,7 @@ import org.junit.Test
 import java.nio.file.Paths
 
 class PostgreSQLTest : ExposedCodeGeneratorFromScriptTest() {
-    private fun runH2Test(tableName: String, checkTablesBlock: (KotlinCompilation.Result) -> Unit) {
+    private fun runPostgreSQLTest(tableName: String, checkTablesBlock: (KotlinCompilation.Result) -> Unit) {
         testByCompilation(
                 "vartypes.sql",
                 Paths.get(resourcesTestDataPath.toString(), "psql"),
@@ -22,7 +22,7 @@ class PostgreSQLTest : ExposedCodeGeneratorFromScriptTest() {
     }
 
     @Test
-    fun integerTypes() = runH2Test("integer_types") { result ->
+    fun integerTypes() = runPostgreSQLTest("integer_types") { result ->
         checkTableObject(result, "IntegerTypes", "integer_types", { tableObject ->
             checkColumnProperty(result, tableObject, "i1", "i1", IntegerColumnType(), isAutoIncremented = true)
             checkColumnProperty(result, tableObject, "i2", "i2", IntegerColumnType())
@@ -32,7 +32,7 @@ class PostgreSQLTest : ExposedCodeGeneratorFromScriptTest() {
     }
 
     @Test
-    fun floatTypes() = runH2Test("floating_point_types") { result ->
+    fun floatTypes() = runPostgreSQLTest("floating_point_types") { result ->
         checkTableObject(result, "FloatingPointTypes", "floating_point_types", { tableObject ->
             checkColumnProperty(result, tableObject, "f1", "f1", DoubleColumnType())
             checkColumnProperty(result, tableObject, "f2", "f2", DoubleColumnType())
@@ -42,7 +42,7 @@ class PostgreSQLTest : ExposedCodeGeneratorFromScriptTest() {
     }
 
     @Test
-    fun longTypes() = runH2Test("long_types") { result ->
+    fun longTypes() = runPostgreSQLTest("long_types") { result ->
         checkTableObject(result, "LongTypes", "long_types", { tableObject ->
             checkColumnProperty(result, tableObject, "l1", "l1", LongColumnType(), isAutoIncremented = true)
             checkColumnProperty(result, tableObject, "l2", "l2", LongColumnType())
@@ -50,7 +50,7 @@ class PostgreSQLTest : ExposedCodeGeneratorFromScriptTest() {
     }
 
     @Test
-    fun smallIntTypes() = runH2Test("small_int_types") { result ->
+    fun smallIntTypes() = runPostgreSQLTest("small_int_types") { result ->
         checkTableObject(result, "SmallIntTypes", "small_int_types", { tableObject ->
             checkColumnProperty(result, tableObject, "s1", "s1", ShortColumnType())
             checkColumnProperty(result, tableObject, "s2", "s2", ShortColumnType())
@@ -58,7 +58,7 @@ class PostgreSQLTest : ExposedCodeGeneratorFromScriptTest() {
     }
 
     @Test
-    fun decimalTypes() = runH2Test("decimal_types") { result ->
+    fun decimalTypes() = runPostgreSQLTest("decimal_types") { result ->
         checkTableObject(result, "DecimalTypes", "decimal_types", { tableObject ->
             checkColumnProperty(result, tableObject, "d1", "d1", DecimalColumnType(131072, 0))
             checkColumnProperty(result, tableObject, "d2", "d2", DecimalColumnType(4, 0))
@@ -70,7 +70,7 @@ class PostgreSQLTest : ExposedCodeGeneratorFromScriptTest() {
     }
 
     @Test
-    fun charTypes() = runH2Test("char_types") { result ->
+    fun charTypes() = runPostgreSQLTest("char_types") { result ->
         checkTableObject(result, "CharTypes", "char_types", { tableObject ->
             checkColumnProperty(result, tableObject, "c1", "c1", CharColumnType(5))
             checkColumnProperty(result, tableObject, "c2", "c2", CharColumnType(1))
@@ -81,7 +81,7 @@ class PostgreSQLTest : ExposedCodeGeneratorFromScriptTest() {
     }
 
     @Test
-    fun datetimeTypes() = runH2Test("datetime_types") { result ->
+    fun datetimeTypes() = runPostgreSQLTest("datetime_types") { result ->
         checkTableObject(result, "DatetimeTypes", "datetime_types", { tableObject ->
             checkColumnProperty(result, tableObject, "d1", "d1", JavaLocalDateTimeColumnType())
             checkColumnProperty(result, tableObject, "d2", "d2", JavaLocalDateColumnType())
@@ -89,12 +89,11 @@ class PostgreSQLTest : ExposedCodeGeneratorFromScriptTest() {
     }
 
     @Test
-    fun miscTypes() = runH2Test("misc_types") { result ->
+    fun miscTypes() = runPostgreSQLTest("misc_types") { result ->
         checkTableObject(result, "MiscTypes", "misc_types", { tableObject ->
             checkColumnProperty(result, tableObject, "m1", "m1", BooleanColumnType())
             checkColumnProperty(result, tableObject, "m2", "m2", BinaryColumnType(2147483647))
             checkColumnProperty(result, tableObject, "m3", "m3", UUIDColumnType())
         })
     }
-
 }
