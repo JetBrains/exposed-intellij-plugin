@@ -32,7 +32,7 @@ class PostgreSQLTest : ExposedCodeGeneratorFromScriptTest() {
     }
 
     @Test
-    fun floatTypes() = runPostgreSQLTest("floating_point_types") { result ->
+    fun floatingPointTypes() = runPostgreSQLTest("floating_point_types") { result ->
         checkTableObject(result, "FloatingPointTypes", "floating_point_types", { tableObject ->
             checkColumnProperty(result, tableObject, "f1", "f1", DoubleColumnType())
             checkColumnProperty(result, tableObject, "f2", "f2", DoubleColumnType())
