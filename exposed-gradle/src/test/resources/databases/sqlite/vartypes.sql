@@ -25,11 +25,11 @@ f3 double precision NOT NULL,
 f4 double NOT NULL
 );
 INSERT INTO floating_point_types VALUES(3.1415926535897931159,3.1415926530000000127,3.1415926535897931159,3.1415926535800000607);
-CREATE TABLE miscellanious_types(
+CREATE TABLE misc_types(
 b1 boolean NOT NULL,
 b2 blob NOT NULL
 );
-INSERT INTO miscellanious_types VALUES(0,'abracadabra?');
+INSERT INTO misc_types VALUES(0,'abracadabra?');
 CREATE TABLE decimal_types(
 d1 numeric NOT NULL,
 d2 decimal(10, 5) NOT NULL

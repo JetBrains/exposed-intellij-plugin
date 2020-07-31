@@ -76,4 +76,12 @@ class SQLiteTest : ExposedCodeGeneratorFromScriptTest() {
             checkColumnProperty(result, tableObject, "d2", "d2", JavaLocalDateColumnType())
         })
     }
+
+    @Test
+    fun miscTypes() = runSQLiteTest("misc_types") { result ->
+        checkTableObject(result, "MiscTypes", "misc_types", { tableObject ->
+            checkColumnProperty(result, tableObject, "b1", "b1", BooleanColumnType())
+            checkColumnProperty(result, tableObject, "b2", "b2", BlobColumnType())
+        })
+    }
 }
