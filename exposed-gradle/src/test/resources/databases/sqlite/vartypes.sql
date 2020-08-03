@@ -1,7 +1,7 @@
 DROP TABLE IF EXISTS long_types;
 DROP TABLE IF EXISTS char_types;
 DROP TABLE IF EXISTS floating_point_types;
-DROP TABLE IF EXISTS miscellanious_types;
+DROP TABLE IF EXISTS misc_types;
 DROP TABLE IF EXISTS decimal_types;
 DROP TABLE IF EXISTS integer_types;
 DROP TABLE IF EXISTS datetime_types;
