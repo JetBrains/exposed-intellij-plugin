@@ -1,9 +1,10 @@
-package org.jetbrains.exposed.gradle
+package org.jetbrains.exposed.gradle.info
 
 import org.jetbrains.exposed.dao.id.IdTable
 import org.jetbrains.exposed.dao.id.IntIdTable
 import org.jetbrains.exposed.dao.id.LongIdTable
 import org.jetbrains.exposed.dao.id.UUIDTable
+import org.jetbrains.exposed.gradle.getTableName
 import schemacrawler.schema.Column
 import schemacrawler.schema.Table
 import java.util.*

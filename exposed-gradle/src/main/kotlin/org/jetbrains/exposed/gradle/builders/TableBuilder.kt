@@ -7,6 +7,8 @@ import org.jetbrains.exposed.dao.id.IntIdTable
 import org.jetbrains.exposed.dao.id.LongIdTable
 import org.jetbrains.exposed.dao.id.UUIDTable
 import org.jetbrains.exposed.gradle.*
+import org.jetbrains.exposed.gradle.info.ColumnInfo
+import org.jetbrains.exposed.gradle.info.TableInfo
 import schemacrawler.schema.Column
 import schemacrawler.schema.Table
 

@@ -4,6 +4,7 @@ import com.squareup.kotlinpoet.*
 import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
 import org.jetbrains.exposed.dao.id.EntityID
 import org.jetbrains.exposed.gradle.*
+import org.jetbrains.exposed.gradle.info.ColumnInfo
 import org.jetbrains.exposed.sql.statements.api.ExposedBlob
 import schemacrawler.schema.Column
 import java.math.BigDecimal
@@ -11,13 +12,23 @@ import java.time.LocalDate
 import java.time.LocalDateTime
 import kotlin.reflect.full.valueParameters
 import kotlin.reflect.jvm.javaMethod
+import org.jetbrains.exposed.sql.Column as ExposedColumn
 
 open class ColumnBuilder(column: Column) {
     protected val columnInfo = ColumnInfo(column)
-    protected open val builder = PropertySpec.builder(
-            getPropertyNameForColumn(column),
-            org.jetbrains.exposed.sql.Column::class.asTypeName().parameterizedBy(columnInfo.columnKClass!!.asTypeName().copy(nullable = columnInfo.nullable))
-    )
+    protected open val builder: PropertySpec.Builder = generateBuilder()
+
+    private fun generateBuilder(): PropertySpec.Builder {
+        val columnKClass = columnInfo.columnKClass
+        if (columnKClass == null && columnInfo.columnExposedFunction == null) {
+            val column = columnInfo.column
+            throw UnsupportedTypeException("Unable to map column ${column.name} of type ${column.columnDataType.fullName} to an Exposed column object.")
+        }
+        return PropertySpec.builder(
+                getPropertyNameForColumn(columnInfo.column),
+                ExposedColumn::class.asTypeName().parameterizedBy(columnInfo.columnKClass!!.asTypeName().copy(nullable = columnInfo.nullable))
+        )
+    }
 
     open fun generateExposedColumnInitializer(
             columnToPropertySpec: Map<Column, PropertySpec>,
@@ -143,7 +154,7 @@ open class ColumnBuilder(column: Column) {
 class IdColumnBuilder(column: Column) : ColumnBuilder(column) {
     override val builder = PropertySpec.builder(
             getPropertyNameForColumn(column),
-            org.jetbrains.exposed.sql.Column::class.asTypeName().parameterizedBy(EntityID::class.asTypeName().parameterizedBy(columnInfo.columnKClass!!.asTypeName())),
+            ExposedColumn::class.asTypeName().parameterizedBy(EntityID::class.asTypeName().parameterizedBy(columnInfo.columnKClass!!.asTypeName())),
             KModifier.OVERRIDE
     )
 
@@ -181,7 +192,7 @@ open class MappedColumnBuilder(column: Column, private val columnMapping: String
 
     override val builder = PropertySpec.builder(
             getPropertyNameForColumn(column),
-            org.jetbrains.exposed.sql.Column::class.asTypeName().parameterizedBy(mappedColumnType.asTypeName().copy(nullable = columnInfo.nullable))
+            ExposedColumn::class.asTypeName().parameterizedBy(mappedColumnType.asTypeName().copy(nullable = columnInfo.nullable))
     )
 
     override fun CodeBlock.Builder.generateExposedColumnFunctionCall(columnInfo: ColumnInfo) {
@@ -192,7 +203,7 @@ open class MappedColumnBuilder(column: Column, private val columnMapping: String
 class MappedIdColumnBuilder(column: Column, columnMapping: String) : MappedColumnBuilder(column, columnMapping) {
     override val builder = PropertySpec.builder(
             getPropertyNameForColumn(column),
-            org.jetbrains.exposed.sql.Column::class.asTypeName().parameterizedBy(EntityID::class.asTypeName().parameterizedBy(mappedColumnType.asTypeName())),
+            ExposedColumn::class.asTypeName().parameterizedBy(EntityID::class.asTypeName().parameterizedBy(mappedColumnType.asTypeName())),
             KModifier.OVERRIDE
     )
 }

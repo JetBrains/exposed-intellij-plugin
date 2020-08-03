@@ -1,9 +1,11 @@
-package org.jetbrains.exposed.gradle
+package org.jetbrains.exposed.gradle.info
 
+import org.jetbrains.exposed.gradle.getColumnName
 import org.jetbrains.exposed.sql.Table
 import org.jetbrains.exposed.sql.`java-time`.date
 import org.jetbrains.exposed.sql.`java-time`.datetime
 import org.jetbrains.exposed.sql.statements.api.ExposedBlob
+import org.jetbrains.exposed.sql.Column as ExposedColumn
 import schemacrawler.schema.Column
 import java.math.BigDecimal
 import java.sql.Blob
@@ -29,14 +31,14 @@ data class ColumnInfo(val column: Column) {
     var nullable: Boolean = column.isNullable && !column.isPartOfPrimaryKey
 
     init {
-        val exposedChar: KFunction<org.jetbrains.exposed.sql.Column<String>> = Table::class.memberFunctions.find {
+        val exposedChar: KFunction<ExposedColumn<String>> = Table::class.memberFunctions.find {
             func -> func.name == "char" && func.parameters.any { p -> p.name == "length" }
-        } as KFunction<org.jetbrains.exposed.sql.Column<String>>
-        val exposedBinary: KFunction<org.jetbrains.exposed.sql.Column<ByteArray>> = Table::class.memberFunctions.find {
+        } as KFunction<ExposedColumn<String>>
+        val exposedBinary: KFunction<ExposedColumn<ByteArray>> = Table::class.memberFunctions.find {
             func -> func.name == "binary" && func.parameters.any { p -> p.name == "length" }
-        } as KFunction<org.jetbrains.exposed.sql.Column<ByteArray>>
+        } as KFunction<ExposedColumn<ByteArray>>
 
-        fun <T : Any> initializeColumnParameters(columnClass: KClass<T>, columnFunction: KFunction<org.jetbrains.exposed.sql.Column<T>>) {
+        fun <T : Any> initializeColumnParameters(columnClass: KClass<T>, columnFunction: KFunction<ExposedColumn<T>>) {
             columnKClass = columnClass
             columnExposedFunction = columnFunction
         }
