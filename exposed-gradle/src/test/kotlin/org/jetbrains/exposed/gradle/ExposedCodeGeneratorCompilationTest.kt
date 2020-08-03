@@ -3,13 +3,11 @@ package org.jetbrains.exposed.gradle
 import com.squareup.kotlinpoet.FileSpec
 import com.tschuchort.compiletesting.KotlinCompilation
 import com.tschuchort.compiletesting.SourceFile
-import org.assertj.core.api.Assertions
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.fail
 import org.jetbrains.exposed.gradle.tests.DatabaseTestsBase
 import org.jetbrains.exposed.gradle.tests.TestDB
 import org.jetbrains.exposed.sql.*
-import java.lang.StringBuilder
 import java.nio.file.Path
 import java.nio.file.Paths
 import kotlin.reflect.KClass
@@ -91,13 +89,7 @@ open class ExposedCodeGeneratorCompilationTest : DatabaseTestsBase() {
             val foreignKeyTargetTableObject = if (foreignKeyTargetTable == null || foreignKeyTargetTable == tableObject::class.simpleName) {
                 tableObject
             } else {
-                // TODO a function for that, possibly, because this is the second time i'm using it
-                val packageName = if (tableObject::class.java.packageName.isNotBlank()) {
-                    "${tableObject::class.java.packageName}."
-                } else {
-                    ""
-                }
-                result.classLoader.loadClass("$packageName$foreignKeyTargetTable").kotlin.objectInstance
+                result.classLoader.loadClass("${formPackageName(tableObject::class.java.packageName)}$foreignKeyTargetTable").kotlin.objectInstance
             }!!
             val target = foreignKeyTargetTableObject::class.memberProperties
                     .find { it.name == foreignKey.targetColumn.toLowerCase() }!!.getter.call(foreignKeyTargetTableObject)
@@ -116,7 +108,7 @@ open class ExposedCodeGeneratorCompilationTest : DatabaseTestsBase() {
             tableClass: KClass<*> = Table::class,
             primaryKeyColumns: List<String> = emptyList()
     ) {
-        val packagePrefix = if (tablePackageName.isNotBlank()) "$tablePackageName." else ""
+        val packagePrefix = formPackageName(tablePackageName)
         val tableObjectClass = result.classLoader.loadClass("$packagePrefix$tablePropertyName").kotlin
 
         assertThat(tableObjectClass.supertypes).hasSize(1)
@@ -137,6 +129,8 @@ open class ExposedCodeGeneratorCompilationTest : DatabaseTestsBase() {
             assertThat(tableObjectInstance.primaryKey).isNull()
         }
     }
+
+    private fun formPackageName(packageName: String) = if (packageName.isNotBlank()) "$packageName." else ""
 }
 
 open class ExposedCodeGeneratorFromTablesTest : ExposedCodeGeneratorCompilationTest() {
@@ -144,10 +138,12 @@ open class ExposedCodeGeneratorFromTablesTest : ExposedCodeGeneratorCompilationT
             tables: List<Table>,
             checkTablesBlock: (KotlinCompilation.Result) -> Unit,
             excludedDbList: List<TestDB> = emptyList(),
-            tableName: String? = null
+            tableName: String? = null,
+            configFileName: String? = null
     ) {
         withTables(excludeSettings = excludedDbList, tables = *tables.toTypedArray(), statement = {
-            val fileSpec = getDatabaseExposedFileSpec(it, tableName)
+            // TODO adapt for multiple file specs
+            val fileSpec = getDatabaseExposedFileSpec(it, tableName, configFileName)[0]
             val result = compileExposedFile(fileSpec)
 
             // if it didn't compile then there might be imports missing, incorrect types, etc
@@ -178,11 +174,11 @@ open class ExposedCodeGeneratorFromScriptTest : ExposedCodeGeneratorCompilationT
         val script = scriptFile.readText()
         val commands = getSQLScriptCommands(script)
         withDb(excludeSettings = excludedDbList, statement = {
-            // todo tokenize
             commands.forEach { command -> exec(command) }
             commit()
 
-            val fileSpec = getDatabaseExposedFileSpec(it, tableName)
+            // TODO adapt for multiple file specs
+            val fileSpec = getDatabaseExposedFileSpec(it, tableName)[0]
             val result = compileExposedFile(fileSpec)
 
             // if it didn't compile then there might be imports missing, incorrect types, etc

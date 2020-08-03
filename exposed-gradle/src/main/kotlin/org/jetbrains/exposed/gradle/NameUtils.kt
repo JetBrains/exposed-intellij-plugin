@@ -24,3 +24,6 @@ fun getObjectNameForTable(table: Table) = when {
 }
 
 fun getTableName(table: Table) = table.name.toLowerCase()
+
+// used in config files for mappings and such
+fun getColumnConfigName(column: Column) = "${column.parent.name}.${column.name}".toLowerCase()

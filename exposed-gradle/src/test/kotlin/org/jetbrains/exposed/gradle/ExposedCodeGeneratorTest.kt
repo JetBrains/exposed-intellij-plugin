@@ -10,6 +10,7 @@ import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.`java-time`.JavaLocalDateColumnType
 import org.jetbrains.exposed.sql.`java-time`.JavaLocalDateTimeColumnType
 import org.junit.Test
+import java.nio.file.Paths
 
 
 class ExposedCodeGeneratorTest : ExposedCodeGeneratorFromTablesTest() {
@@ -184,5 +185,15 @@ class ExposedCodeGeneratorTest : ExposedCodeGeneratorFromTablesTest() {
                 checkColumnProperty(result, tableObjectInstance, "c3", "c3", IntegerColumnType())
             }, primaryKeyColumns = listOf("c1", "c2"))
         })
+    }
+
+    @Test
+    fun mappedColumn() {
+        testByCompilation(listOf(MappedColumnTable), { result ->
+            checkTableObject(result, "MappedColumnTable", "mapped_column_table", { tableObjectInstance ->
+                checkColumnProperty(result, tableObjectInstance, "floatColumn", "float_column", FloatColumnType())
+                checkColumnProperty(result, tableObjectInstance, "integerColumn", "integer_column", IntegerColumnType())
+            }, tablePackageName = "org.jetbrains.exposed.gradle.test")
+        }, configFileName = Paths.get(resourcesConfigFilesPath.toString(), "floatColumnMappedConfig.yml").toString())
     }
 }

@@ -1,0 +1,5 @@
+packageName: org.jetbrains.exposed.gradle.test
+generateSingleFile: true
+generatedFileName: testFile.kt
+columnMappings:
+  mapped_column_table.float_column: float("float_column")

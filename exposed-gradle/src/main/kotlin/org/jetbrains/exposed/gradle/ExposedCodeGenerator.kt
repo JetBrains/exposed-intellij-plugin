@@ -1,23 +1,21 @@
 package org.jetbrains.exposed.gradle
 
+import com.sksamuel.hoplite.ConfigLoader
 import com.squareup.kotlinpoet.*
 import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
-import org.jetbrains.exposed.dao.id.IdTable
-import org.jetbrains.exposed.dao.id.IntIdTable
-import org.jetbrains.exposed.dao.id.LongIdTable
-import org.jetbrains.exposed.dao.id.UUIDTable
-import org.jetbrains.exposed.dao.id.EntityID
+import org.jetbrains.exposed.dao.id.*
 import org.jetbrains.exposed.sql.`java-time`.date
 import org.jetbrains.exposed.sql.`java-time`.datetime
 import org.jetbrains.exposed.sql.statements.api.ExposedBlob
 import org.slf4j.LoggerFactory
 import schemacrawler.schema.Column
 import schemacrawler.schema.Table
+import java.io.File
 import java.math.BigDecimal
 import java.sql.Blob
 import java.sql.Clob
-import java.sql.Timestamp
 import java.sql.Date
+import java.sql.Timestamp
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.util.*
@@ -31,9 +29,11 @@ import org.jetbrains.exposed.sql.Table as ExposedTable
 
 
 // TODO support schemas
-class ExposedCodeGenerator(private val tables: List<Table>) {
-    private val columnToPropertySpec = hashMapOf<Column, PropertySpec>()
-    private val columnToTableSpec = hashMapOf<Column, TypeSpec>()
+class ExposedCodeGenerator(private val tables: List<Table>, private val configFileName: String? = null) {
+    private val columnToPropertySpec = mutableMapOf<Column, PropertySpec>()
+    private val columnToTableSpec = mutableMapOf<Column, TypeSpec>()
+
+    private val columnNameToInitializerBlock = mutableMapOf<String, CodeBlock>()
 
     inner class TableBuilder(table: Table) {
         private val tableInfo = TableInfo(table)
@@ -66,10 +66,19 @@ class ExposedCodeGenerator(private val tables: List<Table>) {
             val columns = tableInfo.table.columns
             for (column in columns) {
                 try {
-                    val columnBuilder = if (column == idColumn) {
-                        IdColumnBuilder(column)
+                    val columnMapping = columnNameToInitializerBlock[getColumnConfigName(column)]
+                    val columnBuilder = if (columnMapping != null) {
+                        if (column == idColumn) {
+                            MappedIdColumnBuilder(column)
+                        } else {
+                            MappedColumnBuilder(column)
+                        }
                     } else {
-                        ColumnBuilder(column)
+                        if (column == idColumn) {
+                            IdColumnBuilder(column)
+                        } else {
+                            ColumnBuilder(column)
+                        }
                     }
                     columnBuilder.generateExposedColumnInitializer()
                     val columnPropertySpec = columnBuilder.build()
@@ -79,7 +88,7 @@ class ExposedCodeGenerator(private val tables: List<Table>) {
                     }
 
                     columnToPropertySpec[column] = columnPropertySpec
-                } catch (e: MetadataUnsupportedTypeException) {
+                } catch (e: UnsupportedTypeException) {
                      logger.error("Unsupported type", e)
                 }
             }
@@ -92,7 +101,7 @@ class ExposedCodeGenerator(private val tables: List<Table>) {
 
             val primaryKeys = tableInfo.primaryKeyColumns.map {
                 columnToPropertySpec[it]?.name
-                        ?: throw MetadataReferencedColumnNotFoundException("Primary key column ${it.fullName} not found.")
+                        ?: throw ReferencedColumnNotFoundException("Primary key column ${it.fullName} not found.")
             }
             val primaryKey =
                     PropertySpec.builder("primaryKey", ClassName("", "PrimaryKey"), KModifier.OVERRIDE)
@@ -192,7 +201,7 @@ class ExposedCodeGenerator(private val tables: List<Table>) {
 
             if (column.referencedColumn != null) {
                 val referencedColumnProperty = columnToPropertySpec[column.referencedColumn]
-                        ?: throw MetadataReferencedColumnNotFoundException(
+                        ?: throw ReferencedColumnNotFoundException(
                                 "Column ${column.referencedColumn.fullName} referenced by ${column.fullName} not found."
                         )
                 val referencedColumnTable = columnToTableSpec[column.referencedColumn]
@@ -246,6 +255,45 @@ class ExposedCodeGenerator(private val tables: List<Table>) {
         }
     }
 
+    open inner class MappedColumnBuilder(column: Column) : ColumnBuilder(column) {
+        private val columnMapping = columnNameToInitializerBlock[getColumnConfigName(column)]!!
+        protected val mappedColumnType = getColumnTypeByFunctionCall(columnMapping.toString())
+
+        private fun getColumnTypeByFunctionCall(functionCall: String) = when (functionCall.takeWhile { it != '(' }) {
+            "byte" -> Byte::class
+            "short" -> Short::class
+            "integer" -> Integer::class
+            "long" -> Long::class
+            "decimal" -> BigDecimal::class
+            "float" -> Float::class
+            "double" -> Double::class
+            "boolean" -> Boolean::class
+            "binary" -> ByteArray::class
+            "blob" -> ExposedBlob::class
+            "char", "varchar", "text" -> String::class
+            "date" -> LocalDate::class
+            "datetime" -> LocalDateTime::class
+            else -> throw UnparseableExposedCallException("Unable to determine type of expression $functionCall and generate column.")
+        }
+
+        override val builder = PropertySpec.builder(
+                getPropertyNameForColumn(column),
+                ExposedColumn::class.asTypeName().parameterizedBy(mappedColumnType.asTypeName().copy(nullable = columnInfo.nullable))
+        )
+
+        override fun CodeBlock.Builder.generateExposedColumnFunctionCall(columnInfo: ColumnInfo) {
+            add(columnMapping)
+        }
+    }
+
+    inner class MappedIdColumnBuilder(column: Column) : MappedColumnBuilder(column) {
+        override val builder = PropertySpec.builder(
+                getPropertyNameForColumn(column),
+                ExposedColumn::class.asTypeName().parameterizedBy(EntityID::class.asTypeName().parameterizedBy(mappedColumnType.asTypeName())),
+                KModifier.OVERRIDE
+        )
+    }
+
     data class TableInfo(val table: Table) {
         val primaryKeyColumns: List<Column> = if (table.hasPrimaryKey()) table.primaryKey.columns else emptyList()
         val idColumn: Column? = if (primaryKeyColumns.size == 1) {
@@ -292,9 +340,6 @@ class ExposedCodeGenerator(private val tables: List<Table>) {
                 func -> func.name == "binary" && func.parameters.any { p -> p.name == "length" }
             } as KFunction<ExposedColumn<ByteArray>>
 
-            fun generateUnsupportedTypeErrorMessage(column: Column) =
-                    "Unable to map column ${column.name} of type ${column.columnDataType.fullName} to an Exposed column object"
-
             fun <T : Any> initializeColumnParameters(columnClass: KClass<T>, columnFunction: KFunction<ExposedColumn<T>>) {
                 columnKClass = columnClass
                 columnExposedFunction = columnFunction
@@ -335,14 +380,14 @@ class ExposedCodeGenerator(private val tables: List<Table>) {
                         initializeColumnParameters(LocalDate::class, ExposedTable::date)
                     name.contains("binary") || name.contains("bytea") ->
                         initializeColumnParameters(ByteArray::class, exposedBinary)
-                    else -> throw MetadataUnsupportedTypeException(generateUnsupportedTypeErrorMessage(column))
+                    // this is what SQLite occasionally uses for single precision floating point numbers
+                    name.contains("single") -> initializeColumnParameters(Float::class, ExposedTable::float)
                 }
             }
 
             fun initializeObject() {
                 when (column.columnDataType.name.toLowerCase()) {
                     "uuid" -> initializeColumnParameters(UUID::class, ExposedTable::uuid)
-                    else -> throw MetadataUnsupportedTypeException(generateUnsupportedTypeErrorMessage(column))
                 }
             }
 
@@ -389,11 +434,38 @@ class ExposedCodeGenerator(private val tables: List<Table>) {
         return builder.build()
     }
 
-    fun generateExposedTables(databaseName: String): FileSpec {
-        val fileSpec = FileSpec.builder("", "${databaseName.toCamelCase(true)}.kt")
-        tables.forEach { fileSpec.addType(generateExposedTable(it)) }
+    fun generateExposedTables(databaseName: String): List<FileSpec> {
+        val config = if (configFileName != null) {
+            ConfigLoader().loadConfigOrThrow(files = listOf(File(configFileName)))
+        } else {
+            ExposedCodeGeneratorConfiguration(generatedFileName = "$databaseName.kt")
+        }
 
-        return fileSpec.build()
+        if (config.columnMappings.isNotEmpty()) {
+            columnNameToInitializerBlock.putAll(config.columnMappings.mapValues { CodeBlock.of(it.value) })
+        }
+
+        return if (config.generateSingleFile) {
+            val fileSpec = FileSpec.builder(
+                    config.packageName,
+                    if (config.generatedFileName.isNullOrBlank()) {
+                        "${databaseName.toCamelCase(capitalizeFirst = true)}.kt"
+                    } else {
+                        config.generatedFileName
+                    }
+            )
+            tables.forEach { fileSpec.addType(generateExposedTable(it)) }
+
+            listOf(fileSpec.build())
+        } else {
+            val fileSpecs = mutableListOf<FileSpec>()
+            for (table in tables) {
+                val fileSpec = FileSpec.builder(config.packageName, "${table.fullName.toCamelCase(capitalizeFirst = true)}.kt")
+                fileSpec.addType(generateExposedTable(table))
+            }
+
+            fileSpecs
+        }
     }
 
     companion object {

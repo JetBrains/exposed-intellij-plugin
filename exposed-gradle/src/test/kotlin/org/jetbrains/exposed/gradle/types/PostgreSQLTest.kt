@@ -2,7 +2,7 @@ package org.jetbrains.exposed.gradle.types
 
 import com.tschuchort.compiletesting.KotlinCompilation
 import org.jetbrains.exposed.gradle.ExposedCodeGeneratorFromScriptTest
-import org.jetbrains.exposed.gradle.resourcesTestDataPath
+import org.jetbrains.exposed.gradle.resourcesDatabasesPath
 import org.jetbrains.exposed.gradle.tests.TestDB
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.`java-time`.JavaLocalDateColumnType
@@ -14,7 +14,7 @@ class PostgreSQLTest : ExposedCodeGeneratorFromScriptTest() {
     private fun runPostgreSQLTest(tableName: String, checkTablesBlock: (KotlinCompilation.Result) -> Unit) {
         testByCompilation(
                 "vartypes.sql",
-                Paths.get(resourcesTestDataPath.toString(), "psql"),
+                Paths.get(resourcesDatabasesPath.toString(), "psql"),
                 checkTablesBlock,
                 TestDB.enabledInTests() - listOf(TestDB.POSTGRESQL, TestDB.POSTGRESQLNG),
                 tableName

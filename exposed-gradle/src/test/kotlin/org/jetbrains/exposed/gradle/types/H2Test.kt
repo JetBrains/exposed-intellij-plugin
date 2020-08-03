@@ -3,7 +3,7 @@ package org.jetbrains.exposed.gradle.types
 import com.tschuchort.compiletesting.KotlinCompilation
 import org.jetbrains.exposed.dao.id.LongIdTable
 import org.jetbrains.exposed.gradle.ExposedCodeGeneratorFromScriptTest
-import org.jetbrains.exposed.gradle.resourcesTestDataPath
+import org.jetbrains.exposed.gradle.resourcesDatabasesPath
 import org.jetbrains.exposed.gradle.tests.TestDB
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.`java-time`.JavaLocalDateColumnType
@@ -15,7 +15,7 @@ class H2Test : ExposedCodeGeneratorFromScriptTest() {
     private fun runH2Test(tableName: String, checkTablesBlock: (KotlinCompilation.Result) -> Unit) {
         testByCompilation(
                 "vartypes.sql",
-                Paths.get(resourcesTestDataPath.toString(), "h2"),
+                Paths.get(resourcesDatabasesPath.toString(), "h2"),
                 checkTablesBlock,
                 TestDB.enabledInTests() - listOf(TestDB.H2, TestDB.H2_MYSQL),
                 tableName

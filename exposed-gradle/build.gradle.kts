@@ -11,7 +11,6 @@ repositories {
 
 dependencies {
     implementation(kotlin("stdlib-jdk8"))
-    testImplementation("junit", "junit", "4.12")
     implementation("org.jetbrains.exposed", "exposed-core", "0.26.1")
     implementation("org.jetbrains.exposed", "exposed-dao", "0.26.1")
     implementation("org.jetbrains.exposed", "exposed-jdbc", "0.26.1")
@@ -26,7 +25,8 @@ dependencies {
     implementation("com.h2database", "h2","1.4.199")
     implementation("com.github.Erdos-Graph-Framework:Erdos:v1.0")
     implementation("com.github.tschuchortdev:kotlin-compile-testing:1.2.9")
-    testImplementation("org.assertj:assertj-core:3.16.1")
+    implementation("com.sksamuel.hoplite:hoplite-core:1.3.2")
+    implementation("com.sksamuel.hoplite:hoplite-yaml:1.3.2")
 //    implementation( "ch.qos.logback", "logback-classic", "1.2.3")
 
     implementation("com.opentable.components", "otj-pg-embedded", "0.12.0")
@@ -37,6 +37,9 @@ dependencies {
     implementation("com.impossibl.pgjdbc-ng", "pgjdbc-ng", "0.8.4")
     implementation("com.oracle.database.jdbc", "ojdbc8", "12.2.0.1")
     implementation("com.microsoft.sqlserver", "mssql-jdbc", "8.2.2.jre8")
+
+    testImplementation("junit", "junit", "4.12")
+    testImplementation("org.assertj:assertj-core:3.16.1")
 }
 
 configure<JavaPluginConvention> {
