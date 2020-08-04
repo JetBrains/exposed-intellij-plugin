@@ -116,10 +116,6 @@ open class ExposedCodeGeneratorCompilationTest : DatabaseTestsBase() {
 
             private fun formPackageName(packageName: String) = if (packageName.isNotBlank()) "$packageName." else ""
         }
-
-        inner class ColumnChecker() {
-
-        }
     }
 
     protected fun compileExposedFile(fileSpec: FileSpec): KotlinCompilation.Result {
@@ -170,7 +166,7 @@ open class ExposedCodeGeneratorFromScriptTest : ExposedCodeGeneratorCompilationT
     fun testByCompilation(
             scriptFileName: String,
             scriptFilePath: Path,
-            checkTablesBlock: (KotlinCompilation.Result) -> Unit,
+            checkTablesBlock: CompilationResultChecker.() -> Unit,
             excludedDbList: List<TestDB> = emptyList(),
             tableName: String? = null
     ) {
@@ -187,7 +183,42 @@ open class ExposedCodeGeneratorFromScriptTest : ExposedCodeGeneratorCompilationT
 
             // if it didn't compile then there might be imports missing, incorrect types, etc
             assertThat(result.exitCode).isEqualTo(KotlinCompilation.ExitCode.OK)
-            checkTablesBlock(result)
+            checkTablesBlock(CompilationResultChecker(result))
         })
+    }
+}
+
+// used for testing specific DB dialects on resource files for those specific DBs
+open class ExposedCodeGeneratorDBTest(
+        private val dbFileName: String,
+        private val dbDirectoryName: String,
+        private val db: List<TestDB>
+) : ExposedCodeGeneratorFromScriptTest() {
+    protected fun runTableTest(tableName: String, checkTablesBlock: CompilationResultChecker.() -> Unit) {
+        testByCompilation(
+                dbFileName,
+                Paths.get(resourcesDatabasesPath.toString(), dbDirectoryName),
+                checkTablesBlock,
+                TestDB.enabledInTests() - db,
+                tableName
+        )
+    }
+
+    protected fun runTableTest(
+            tableName: String,
+            tableObjectName: String,
+            checkColumnsBlock: CompilationResultChecker.TableChecker.() -> Unit
+    ) {
+        testByCompilation(
+                dbFileName,
+                Paths.get(resourcesDatabasesPath.toString(), dbDirectoryName),
+                {
+                    with(TableChecker(tableObjectName)) {
+                        checkTableObject(tableName, { checkColumnsBlock(this) })
+                    }
+                },
+                TestDB.enabledInTests() - db,
+                tableName
+        )
     }
 }
