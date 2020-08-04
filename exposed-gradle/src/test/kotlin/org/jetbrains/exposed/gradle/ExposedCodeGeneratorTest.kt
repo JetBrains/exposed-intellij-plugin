@@ -4,11 +4,11 @@ import org.jetbrains.exposed.dao.id.IdTable
 import org.jetbrains.exposed.dao.id.IntIdTable
 import org.jetbrains.exposed.dao.id.LongIdTable
 import org.jetbrains.exposed.dao.id.UUIDTable
+import org.jetbrains.exposed.sql.`java-time`.JavaLocalDateColumnType
+import org.jetbrains.exposed.sql.`java-time`.JavaLocalDateTimeColumnType
 import org.jetbrains.exposed.gradle.databases.*
 import org.jetbrains.exposed.gradle.tests.TestDB
 import org.jetbrains.exposed.sql.*
-import org.jetbrains.exposed.sql.`java-time`.JavaLocalDateColumnType
-import org.jetbrains.exposed.sql.`java-time`.JavaLocalDateTimeColumnType
 import org.junit.Test
 import java.nio.file.Paths
 
@@ -16,184 +16,220 @@ import java.nio.file.Paths
 class ExposedCodeGeneratorTest : ExposedCodeGeneratorFromTablesTest() {
     @Test
     fun charTypes() {
-        testByCompilation(listOf(CharTypes), { result ->
-            checkTableObject(result, "CharTypes", "char_types", { tableObjectInstance ->
-                checkColumnProperty(result, tableObjectInstance, "charColumn", "char_column", CharColumnType(5))
-                checkColumnProperty(result, tableObjectInstance, "varcharColumn", "varchar_column", VarCharColumnType(5))
-                checkColumnProperty(result, tableObjectInstance, "textColumn", "text_column", TextColumnType())
-            })
+        testByCompilation(listOf(CharTypes), {
+            with(TableChecker("CharTypes")) {
+                checkTableObject("char_types", {
+                    checkColumnProperty("charColumn", "char_column", CharColumnType(5))
+                    checkColumnProperty("varcharColumn", "varchar_column", VarCharColumnType(5))
+                    checkColumnProperty("textColumn", "text_column", TextColumnType())
+                })
+            }
         })
     }
 
     @Test
     // PostgreSQL doesn't allow for TINYINT columns
     fun integerTypes() {
-        testByCompilation(listOf(IntegerTypes), { result ->
-            checkTableObject(result, "IntegerTypes", "integer_types", { tableObjectInstance ->
-                checkColumnProperty(result, tableObjectInstance, "tinyIntColumn", "tiny_int_column", ByteColumnType())
-                checkColumnProperty(result, tableObjectInstance, "shortColumn", "short_column", ShortColumnType())
-                checkColumnProperty(result, tableObjectInstance, "integerColumn", "integer_column", IntegerColumnType())
-                checkColumnProperty(result, tableObjectInstance, "longColumn", "long_column", LongColumnType())
-            })
+        testByCompilation(listOf(IntegerTypes), {
+            with(TableChecker("IntegerTypes")) {
+                checkTableObject("integer_types", {
+                    checkColumnProperty("tinyIntColumn", "tiny_int_column", ByteColumnType())
+                    checkColumnProperty("shortColumn", "short_column", ShortColumnType())
+                    checkColumnProperty("integerColumn", "integer_column", IntegerColumnType())
+                    checkColumnProperty("longColumn", "long_column", LongColumnType())
+                })
+            }
+
         }, excludedDbList = listOf(TestDB.POSTGRESQL, TestDB.POSTGRESQLNG))
     }
 
     @Test
     // PostgreSQL uses INT2 in place of TINYINT
     fun integerTypesPostgres() {
-        testByCompilation(listOf(IntegerTypes), { result ->
-            checkTableObject(result, "IntegerTypes", "integer_types", { tableObjectInstance ->
-                checkColumnProperty(result, tableObjectInstance, "tinyIntColumn", "tiny_int_column", ShortColumnType())
-                checkColumnProperty(result, tableObjectInstance, "shortColumn", "short_column", ShortColumnType())
-                checkColumnProperty(result, tableObjectInstance, "integerColumn", "integer_column", IntegerColumnType())
-                checkColumnProperty(result, tableObjectInstance, "longColumn", "long_column", LongColumnType())
-            })
+        testByCompilation(listOf(IntegerTypes), {
+            with(TableChecker("IntegerTypes")) {
+                checkTableObject("integer_types", {
+                    checkColumnProperty("tinyIntColumn", "tiny_int_column", ShortColumnType())
+                    checkColumnProperty("shortColumn", "short_column", ShortColumnType())
+                    checkColumnProperty("integerColumn", "integer_column", IntegerColumnType())
+                    checkColumnProperty("longColumn", "long_column", LongColumnType())
+                })
+            }
         }, excludedDbList = TestDB.enabledInTests() - listOf(TestDB.POSTGRESQL, TestDB.POSTGRESQLNG))
     }
 
     @Test
     // PostgreSQL erases binary columns length
     fun miscTypes() {
-        testByCompilation(listOf(MiscTypes), { result ->
-            checkTableObject(result, "MiscTypes", "misc_types", { tableObjectInstance ->
-                checkColumnProperty(result, tableObjectInstance, "booleanColumn", "boolean_column", BooleanColumnType())
-                checkColumnProperty(result, tableObjectInstance, "binaryColumn", "binary_column", BinaryColumnType(32))
-                checkColumnProperty(result, tableObjectInstance, "blobColumn", "blob_column", BlobColumnType())
-            })
+        testByCompilation(listOf(MiscTypes), {
+            with(TableChecker("MiscTypes")) {
+                checkTableObject("misc_types", {
+                    checkColumnProperty("booleanColumn", "boolean_column", BooleanColumnType())
+                    checkColumnProperty("binaryColumn", "binary_column", BinaryColumnType(32))
+                    checkColumnProperty("blobColumn", "blob_column", BlobColumnType())
+                })
+            }
         }, excludedDbList = listOf(TestDB.POSTGRESQL, TestDB.POSTGRESQLNG))
     }
 
     @Test
     // PostgresSQL: BLOB -> Binary, binary length is always the maximal possible
     fun miscTypesPostgres() {
-        testByCompilation(listOf(MiscTypes), { result ->
-            checkTableObject(result, "MiscTypes", "misc_types", { tableObjectInstance ->
-                checkColumnProperty(result, tableObjectInstance, "booleanColumn", "boolean_column", BooleanColumnType())
-                checkColumnProperty(result, tableObjectInstance, "binaryColumn", "binary_column", BinaryColumnType(2147483647))
-                checkColumnProperty(result, tableObjectInstance, "blobColumn", "blob_column", BinaryColumnType(2147483647))
-            })
+        testByCompilation(listOf(MiscTypes), {
+            with(TableChecker("MiscTypes")) {
+                checkTableObject("misc_types", {
+                    checkColumnProperty("booleanColumn", "boolean_column", BooleanColumnType())
+                    checkColumnProperty("binaryColumn", "binary_column", BinaryColumnType(2147483647))
+                    checkColumnProperty("blobColumn", "blob_column", BinaryColumnType(2147483647))
+                })
+            }
         }, excludedDbList = TestDB.enabledInTests() - listOf(TestDB.POSTGRESQL, TestDB.POSTGRESQLNG))
     }
 
     @Test
     fun decimalTypes() {
-        testByCompilation(listOf(DecimalTypes), { result ->
-            checkTableObject(result, "DecimalTypes", "decimal_types", { tableObjectInstance ->
-                checkColumnProperty(result, tableObjectInstance, "decimalColumn1", "decimal_column_1", DecimalColumnType(10, 0))
-                checkColumnProperty(result, tableObjectInstance, "decimalColumn2", "decimal_column_2", DecimalColumnType(10, 2))
-            })
+        testByCompilation(listOf(DecimalTypes), {
+            with(TableChecker("DecimalTypes")) {
+                checkTableObject("decimal_types", {
+                    checkColumnProperty("decimalColumn1", "decimal_column_1", DecimalColumnType(10, 0))
+                    checkColumnProperty("decimalColumn2", "decimal_column_2", DecimalColumnType(10, 2))
+                })
+            }
         })
     }
 
     @Test
     // SQLite stores LocalDateTime as Numeric, making it indistinguishable from actual numeric/decimal columns
     fun dateTimeTypes() {
-        testByCompilation(listOf(DateTimeTypes), { result ->
-            checkTableObject(result, "DateTimeTypes", "date_time_types", { tableObjectInstance ->
-                checkColumnProperty(result, tableObjectInstance, "dateColumn", "date_column", JavaLocalDateColumnType())
-                checkColumnProperty(result, tableObjectInstance, "dateTimeColumn", "date_time_column", JavaLocalDateTimeColumnType())
-            })
+        testByCompilation(listOf(DateTimeTypes), {
+            with(TableChecker("DateTimeTypes")) {
+                checkTableObject("date_time_types", {
+                    checkColumnProperty("dateColumn", "date_column", JavaLocalDateColumnType())
+                    checkColumnProperty("dateTimeColumn", "date_time_column", JavaLocalDateTimeColumnType())
+                })
+            }
         }, excludedDbList = listOf(TestDB.SQLITE))
     }
 
     @Test
     fun nullableTypes() {
-        testByCompilation(listOf(NullableTypes), { result ->
-            checkTableObject(result, "NullableTypes", "nullable_types",  { tableObjectInstance ->
-                checkColumnProperty(result, tableObjectInstance, "c1", "c1", IntegerColumnType().apply { nullable = true }, isNullable = true)
-                checkColumnProperty(result, tableObjectInstance, "c2", "c2", LongColumnType().apply { nullable = true }, isNullable = true)
-                checkColumnProperty(result, tableObjectInstance, "c3", "c3", DoubleColumnType().apply { nullable = true }, isNullable = true)
-                checkColumnProperty(result, tableObjectInstance, "c4", "c4", CharColumnType(5).apply { nullable = true }, isNullable = true)
-                checkColumnProperty(result, tableObjectInstance, "c5", "c5", BooleanColumnType().apply { nullable = true }, isNullable = true)
-            })
+        testByCompilation(listOf(NullableTypes), {
+            with(TableChecker("NullableTypes")) {
+                checkTableObject("nullable_types",  {
+                    checkColumnProperty("c1", "c1", IntegerColumnType().apply { nullable = true }, isNullable = true)
+                    checkColumnProperty("c2", "c2", LongColumnType().apply { nullable = true }, isNullable = true)
+                    checkColumnProperty("c3", "c3", DoubleColumnType().apply { nullable = true }, isNullable = true)
+                    checkColumnProperty("c4", "c4", CharColumnType(5).apply { nullable = true }, isNullable = true)
+                    checkColumnProperty("c5", "c5", BooleanColumnType().apply { nullable = true }, isNullable = true)
+                })
+            }
         })
     }
 
     @Test
     fun selfForeignKey() {
-        testByCompilation(listOf(SelfForeignKeyTable), { result ->
-            checkTableObject(result, "SelfForeignKeyTable", "self_foreign_key_table", { tableObjectInstance ->
-                checkColumnProperty(result, tableObjectInstance, "c1", "c1", IntegerColumnType())
-                checkColumnProperty(result, tableObjectInstance, "c2", "c2", IntegerColumnType(), foreignKeyFrom = "c2", foreignKeyTarget = "c1")
-                checkColumnProperty(result, tableObjectInstance, "c3", "c3", IntegerColumnType())
-            })
+        testByCompilation(listOf(SelfForeignKeyTable), {
+            with(TableChecker("SelfForeignKeyTable")) {
+                checkTableObject("self_foreign_key_table", {
+                    checkColumnProperty("c1", "c1", IntegerColumnType())
+                    checkColumnProperty("c2", "c2", IntegerColumnType(), foreignKeyFrom = "c2", foreignKeyTarget = "c1")
+                    checkColumnProperty("c3", "c3", IntegerColumnType())
+                })
+            }
         }, excludedDbList = listOf(TestDB.MYSQL, TestDB.POSTGRESQL, TestDB.POSTGRESQLNG))
     }
 
     @Test
     fun foreignKey() {
-        testByCompilation(listOf(Sample, SampleRef), { result ->
-            checkTableObject(result, "Sample", "sample", { tableObjectInstance ->
-                checkColumnProperty(result, tableObjectInstance, "c1", "c1", IntegerColumnType())
-                checkColumnProperty(result, tableObjectInstance, "c2", "c2", TextColumnType())
-            })
-
-            checkTableObject(result, "SampleRef", "sample_ref", { tableObjectInstance ->
-                checkColumnProperty(result, tableObjectInstance, "c1", "c1", IntegerColumnType())
-                checkColumnProperty(result, tableObjectInstance, "c2", "c2", IntegerColumnType(),
-                        foreignKeyFrom = "c2", foreignKeyTarget = "c1", foreignKeyTargetTable = "Sample")
-            })
+        testByCompilation(listOf(Sample, SampleRef), {
+            with(TableChecker("Sample")) {
+                checkTableObject("sample", {
+                    checkColumnProperty("c1", "c1", IntegerColumnType())
+                    checkColumnProperty("c2", "c2", TextColumnType())
+                })
+            }
+            with(TableChecker("SampleRef")) {
+                checkTableObject("sample_ref", {
+                    checkColumnProperty("c1", "c1", IntegerColumnType())
+                    checkColumnProperty("c2", "c2", IntegerColumnType(),
+                            foreignKeyFrom = "c2", foreignKeyTarget = "c1", foreignKeyTargetTable = "Sample")
+                })
+            }
         }, excludedDbList = listOf(TestDB.MYSQL, TestDB.POSTGRESQL, TestDB.POSTGRESQLNG))
     }
 
     @Test
     fun autoIncrement() {
-        testByCompilation(listOf(AutoIncrementTable), { result ->
-            checkTableObject(result, "AutoIncrementTable", "auto_increment_table", { tableObjectInstance ->
-                checkColumnProperty(result, tableObjectInstance, "c1", "c1", IntegerColumnType(), isAutoIncremented = true)
-                checkColumnProperty(result, tableObjectInstance, "c2", "c2", LongColumnType(), isAutoIncremented = true)
-            })
+        testByCompilation(listOf(AutoIncrementTable), {
+            with(TableChecker("AutoIncrementTable")) {
+                checkTableObject("auto_increment_table", {
+                    checkColumnProperty("c1", "c1", IntegerColumnType(), isAutoIncremented = true)
+                    checkColumnProperty("c2", "c2", LongColumnType(), isAutoIncremented = true)
+                })
+            }
         }, excludedDbList = listOf(TestDB.SQLITE, TestDB.MYSQL))
     }
 
     @Test
     fun idTables() {
-        testByCompilation(listOf(Sample1, Sample2, Sample3, Sample4), { result ->
-            checkTableObject(result, "Sample1", "sample_1", { tableObjectInstance ->
-                checkColumnProperty(result, tableObjectInstance, "str", "str", TextColumnType())
-                checkColumnProperty(result, tableObjectInstance, "id", "id", IntegerColumnType(), isAutoIncremented = true, isEntityId = true)
-            }, tableClass = IntIdTable::class, primaryKeyColumns = listOf("id"))
+        testByCompilation(listOf(Sample1, Sample2, Sample3, Sample4), {
+            with(TableChecker("Sample1")) {
+                checkTableObject("sample_1", {
+                    checkColumnProperty("str", "str", TextColumnType())
+                    checkColumnProperty("id", "id", IntegerColumnType(), isAutoIncremented = true, isEntityId = true)
+                }, tableClass = IntIdTable::class, primaryKeyColumns = listOf("id"))
+            }
+            with(TableChecker("Sample2")) {
+                checkTableObject("sample_2", {
+                    checkColumnProperty("str", "str", TextColumnType())
+                    checkColumnProperty("id", "id", LongColumnType(), isAutoIncremented = true, isEntityId = true)
+                }, tableClass = LongIdTable::class, primaryKeyColumns = listOf("id"))
+            }
+            with(TableChecker("Sample3")) {
+                checkTableObject("sample_3", {
+                    checkColumnProperty("str", "str", TextColumnType())
+                    checkColumnProperty("id", "id", UUIDColumnType(), isEntityId = true)
+                }, tableClass = UUIDTable::class, primaryKeyColumns = listOf("id"))
+            }
+            with(TableChecker("Sample4")) {
+                checkTableObject("sample_4", {
+                    checkColumnProperty("str", "str", TextColumnType())
+                    checkColumnProperty("id", "id", VarCharColumnType(30), isEntityId = true)
+                }, tableClass = IdTable::class, primaryKeyColumns = listOf("id"))
+            }
 
-            checkTableObject(result, "Sample2", "sample_2", { tableObjectInstance ->
-                checkColumnProperty(result, tableObjectInstance, "str", "str", TextColumnType())
-                checkColumnProperty(result, tableObjectInstance, "id", "id", LongColumnType(), isAutoIncremented = true, isEntityId = true)
-            }, tableClass = LongIdTable::class, primaryKeyColumns = listOf("id"))
-
-            checkTableObject(result, "Sample3", "sample_3", { tableObjectInstance ->
-                checkColumnProperty(result, tableObjectInstance, "str", "str", TextColumnType())
-                checkColumnProperty(result, tableObjectInstance, "id", "id", UUIDColumnType(), isEntityId = true)
-            }, tableClass = UUIDTable::class, primaryKeyColumns = listOf("id"))
-
-            checkTableObject(result, "Sample4", "sample_4", { tableObjectInstance ->
-                checkColumnProperty(result, tableObjectInstance, "str", "str", TextColumnType())
-                checkColumnProperty(result, tableObjectInstance, "id", "id", VarCharColumnType(30), isEntityId = true)
-            }, tableClass = IdTable::class, primaryKeyColumns = listOf("id"))
         }, excludedDbList = listOf(TestDB.SQLITE, TestDB.MYSQL))
     }
 
     @Test
     fun primaryKey() {
-        testByCompilation(listOf(SinglePrimaryKeyTable, CompositePrimaryKeyTable), { result ->
-            checkTableObject(result, "SinglePrimaryKeyTable", "single_primary_key_table", { tableObjectInstance ->
-                checkColumnProperty(result, tableObjectInstance, "c1", "c1", IntegerColumnType())
-                checkColumnProperty(result, tableObjectInstance, "c2", "c2", IntegerColumnType())
-            }, primaryKeyColumns = listOf("c1"))
+        testByCompilation(listOf(SinglePrimaryKeyTable, CompositePrimaryKeyTable), {
+            with(TableChecker("SinglePrimaryKeyTable")) {
+                checkTableObject("single_primary_key_table", {
+                    checkColumnProperty("c1", "c1", IntegerColumnType())
+                    checkColumnProperty("c2", "c2", IntegerColumnType())
+                }, primaryKeyColumns = listOf("c1"))
+            }
+            with(TableChecker("CompositePrimaryKeyTable")) {
+                checkTableObject("composite_primary_key_table", {
+                    checkColumnProperty("c1", "c1", IntegerColumnType())
+                    checkColumnProperty("c2", "c2", IntegerColumnType())
+                    checkColumnProperty("c3", "c3", IntegerColumnType())
+                }, primaryKeyColumns = listOf("c1", "c2"))
 
-            checkTableObject(result, "CompositePrimaryKeyTable", "composite_primary_key_table", { tableObjectInstance ->
-                checkColumnProperty(result, tableObjectInstance, "c1", "c1", IntegerColumnType())
-                checkColumnProperty(result, tableObjectInstance, "c2", "c2", IntegerColumnType())
-                checkColumnProperty(result, tableObjectInstance, "c3", "c3", IntegerColumnType())
-            }, primaryKeyColumns = listOf("c1", "c2"))
+            }
         })
     }
 
     @Test
     fun mappedColumn() {
-        testByCompilation(listOf(MappedColumnTable), { result ->
-            checkTableObject(result, "MappedColumnTable", "mapped_column_table", { tableObjectInstance ->
-                checkColumnProperty(result, tableObjectInstance, "floatColumn", "float_column", FloatColumnType())
-                checkColumnProperty(result, tableObjectInstance, "integerColumn", "integer_column", IntegerColumnType())
-            }, tablePackageName = "org.jetbrains.exposed.gradle.test")
+        testByCompilation(listOf(MappedColumnTable), {
+            with(TableChecker("MappedColumnTable", "org.jetbrains.exposed.gradle.test")) {
+                checkTableObject("mapped_column_table", {
+                    checkColumnProperty("floatColumn", "float_column", FloatColumnType())
+                    checkColumnProperty("integerColumn", "integer_column", IntegerColumnType())
+                })
+            }
         }, configFileName = Paths.get(resourcesConfigFilesPath.toString(), "floatColumnMappedConfig.yml").toString())
     }
 }
