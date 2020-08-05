@@ -7,6 +7,7 @@ import org.jetbrains.exposed.gradle.*
 import org.jetbrains.exposed.gradle.info.ColumnInfo
 import org.jetbrains.exposed.sql.statements.api.ExposedBlob
 import schemacrawler.schema.Column
+import schemacrawler.schema.IndexType
 import java.math.BigDecimal
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -130,6 +131,19 @@ open class ColumnBuilder(column: Column) {
 
         if (column.isNullable && !column.isPartOfPrimaryKey) {
             add(".%M()", MemberName("", "nullable"))
+        }
+
+        if (column.isPartOfIndex) {
+            val indexes = column.parent.indexes.filter { it.contains(column) }
+                    .filter { it.columns.size == 1 && (it.indexType in listOf(IndexType.other, IndexType.unknown)) }
+            for (index in indexes) {
+                val indexName = getIndexName(index)
+                if (column.isPartOfUniqueIndex) {
+                    add(".%M(%S)", MemberName("", "uniqueIndex"), indexName)
+                } else {
+                    add(".%M(%S)", MemberName("", "index"), indexName)
+                }
+            }
         }
     }
 

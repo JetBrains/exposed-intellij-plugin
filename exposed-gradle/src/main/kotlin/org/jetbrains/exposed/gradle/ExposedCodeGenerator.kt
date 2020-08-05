@@ -28,6 +28,7 @@ class ExposedCodeGenerator(private val tables: List<Table>, private val configFi
         builder.generateExposedTableDeclaration()
         builder.generateExposedTableColumns()
         builder.generateExposedTablePrimaryKey()
+        builder.generateExposedTableMulticolumnIndexes()
 
         return builder.build()
     }

@@ -10,6 +10,7 @@ import org.jetbrains.exposed.gradle.*
 import org.jetbrains.exposed.gradle.info.ColumnInfo
 import org.jetbrains.exposed.gradle.info.TableInfo
 import schemacrawler.schema.Column
+import schemacrawler.schema.IndexType
 import schemacrawler.schema.Table
 
 class TableBuilder(
@@ -91,6 +92,33 @@ class TableBuilder(
                         .build()
         builder.addProperty(primaryKey)
     }
+
+    fun generateExposedTableMulticolumnIndexes() {
+        val indexes = tableInfo.table.indexes.filter { it.columns.size > 1 || it.indexType !in listOf(IndexType.other, IndexType.unknown)}
+        if (indexes.isEmpty()) {
+            return
+        }
+
+        builder.addInitializerBlock(buildCodeBlock {
+            for (index in indexes) {
+                val name = getIndexName(index)
+                // TODO nullability
+                val columns = index.columns.map { columnToPropertySpec[it]!!.name }
+                val indexType = indexTypeName[index.indexType]
+                val indexTypeString = if (indexType != null) ", indexType = \"$indexType\"" else ""
+                if (index.isUnique) {
+                    add("%M(%S, ${columns.joinToString(", ")}$indexTypeString)", MemberName("", "uniqueIndex"), name)
+                } else {
+                    add("%M(%S, false, ${columns.joinToString(", ")}$indexTypeString)", MemberName("", "index"), name)
+                }
+            }
+        })
+    }
+
+    // correct name
+    private val indexTypeName = mapOf(
+            IndexType.hashed to "HASH"
+    )
 
     fun build(): TypeSpec {
         val exposedTable = builder.build()

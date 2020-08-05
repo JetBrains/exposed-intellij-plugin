@@ -2,6 +2,7 @@ package org.jetbrains.exposed.gradle
 
 import org.apache.commons.text.CaseUtils
 import schemacrawler.schema.Column
+import schemacrawler.schema.Index
 import schemacrawler.schema.Table
 
 fun String.toCamelCase(capitalizeFirst: Boolean = false): String =
@@ -27,3 +28,5 @@ fun getTableName(table: Table) = table.name.toLowerCase()
 
 // used in config files for mappings and such
 fun getColumnConfigName(column: Column) = "${column.parent.name}.${column.name}".toLowerCase()
+
+fun getIndexName(index: Index) = index.name.toLowerCase()

@@ -216,7 +216,6 @@ class ExposedCodeGeneratorTest : ExposedCodeGeneratorFromTablesTest() {
                     checkColumnProperty("c2", "c2", IntegerColumnType())
                     checkColumnProperty("c3", "c3", IntegerColumnType())
                 }, primaryKeyColumns = listOf("c1", "c2"))
-
             }
         })
     }
@@ -231,5 +230,53 @@ class ExposedCodeGeneratorTest : ExposedCodeGeneratorFromTablesTest() {
                 })
             }
         }, configFileName = Paths.get(resourcesConfigFilesPath.toString(), "floatColumnMappedConfig.yml").toString())
+    }
+
+    @Test
+    fun hashIndexPostgreSQL() {
+        testByCompilation(listOf(HashIndexTable), {
+            with(TableChecker("HashIndexTable")) {
+                checkTableObject("hash_index_table", {
+                    checkColumnProperty("c1", "c1", IntegerColumnType())
+                    checkColumnProperty("c2", "c2", TextColumnType())
+                }, indexes = listOf(
+                        CompilationResultChecker.IndexWrapper("custom_index_name", false, listOf("c1"), "HASH")
+                ))
+            }
+        }, excludedDbList = TestDB.enabledInTests() - listOf(TestDB.POSTGRESQL, TestDB.POSTGRESQLNG))
+    }
+
+    @Test
+    fun multiColumnIndex() {
+        testByCompilation(listOf(MultiColumnIndexTable), {
+            with(TableChecker("MultiColumnIndexTable")) {
+                checkTableObject("multi_column_index_table", {
+                    checkColumnProperty("c1", "c1", IntegerColumnType())
+                    checkColumnProperty("c2", "c2", TextColumnType())
+                    checkColumnProperty("c3", "c3", IntegerColumnType())
+                }, indexes = listOf(
+                        CompilationResultChecker.IndexWrapper("custom_index_name", false, listOf("c1", "c3")),
+                        CompilationResultChecker.IndexWrapper("custom_unique_index_name", true, listOf("c3"))
+                ))
+            }
+        }, excludedDbList = listOf(TestDB.H2, TestDB.H2_MYSQL))
+    }
+
+    @Test
+    // H2 adds a (more or less random? it starts with '_index_') suffix to unique index names;
+    // substituting a unique index on c2 for a non-unique one allows to run this test for H2
+    fun indexes() {
+        testByCompilation(listOf(IndexTable), {
+            with(TableChecker("IndexTable")) {
+                checkTableObject("index_table", {
+                    checkColumnProperty("c1", "c1", IntegerColumnType())
+                    checkColumnProperty("c2", "c2", IntegerColumnType())
+                }, indexes = listOf(
+                        CompilationResultChecker.IndexWrapper("idx1", false, listOf("c1")),
+                        CompilationResultChecker.IndexWrapper("idx2", true, listOf("c2")),
+                        CompilationResultChecker.IndexWrapper("idx3", false, listOf("c1"))
+                ))
+            }
+        }, excludedDbList = listOf(TestDB.H2, TestDB.H2_MYSQL))
     }
 }

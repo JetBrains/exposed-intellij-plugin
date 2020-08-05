@@ -95,7 +95,8 @@ open class ExposedCodeGeneratorCompilationTest : DatabaseTestsBase() {
                     tableName: String,
                     checkPropertiesBlock: () -> Unit,
                     tableClass: KClass<*> = Table::class,
-                    primaryKeyColumns: List<String> = emptyList()
+                    primaryKeyColumns: List<String> = emptyList(),
+                    indexes: List<IndexWrapper> = emptyList()
             ) {
                 assertThat(tableObjectClass.supertypes).hasSize(1)
                 assertThat(tableObjectClass.supertypes[0].classifier).isEqualTo(tableClass)
@@ -112,10 +113,27 @@ open class ExposedCodeGeneratorCompilationTest : DatabaseTestsBase() {
                 } else {
                     assertThat(tableObjectInstance.primaryKey).isNull()
                 }
+
+                assertThat(indexes).hasSameSizeAs(tableObjectInstance.indices)
+                for (index in indexes) {
+                    val tableIndex = tableObjectInstance.indices.find { it.indexName == index.name }
+                    assertThat(tableIndex).isNotNull
+                    assertThat(tableIndex!!.unique).isEqualTo(index.isUnique)
+                    assertThat(index.columnNames).hasSameSizeAs(tableIndex.columns)
+                    assertThat(index.columnNames).allSatisfy { name -> tableIndex.columns.any { it.name == name } }
+                    assertThat(tableIndex.indexType).isEqualTo(index.type)
+                }
             }
 
             private fun formPackageName(packageName: String) = if (packageName.isNotBlank()) "$packageName." else ""
         }
+
+        data class IndexWrapper(
+                val name: String? = null,
+                val isUnique: Boolean = false,
+                val columnNames: List<String> = emptyList(),
+                val type: String? = null
+        )
     }
 
     protected fun compileExposedFile(fileSpec: FileSpec): KotlinCompilation.Result {
