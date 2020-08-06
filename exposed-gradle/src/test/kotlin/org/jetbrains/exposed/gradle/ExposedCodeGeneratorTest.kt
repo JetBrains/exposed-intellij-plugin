@@ -263,8 +263,6 @@ class ExposedCodeGeneratorTest : ExposedCodeGeneratorFromTablesTest() {
     }
 
     @Test
-    // H2 adds a (more or less random? it starts with '_index_') suffix to unique index names;
-    // substituting a unique index on c2 for a non-unique one allows to run this test for H2
     fun indexes() {
         testByCompilation(listOf(IndexTable), {
             with(TableChecker("IndexTable")) {
@@ -273,8 +271,22 @@ class ExposedCodeGeneratorTest : ExposedCodeGeneratorFromTablesTest() {
                     checkColumnProperty("c2", "c2", IntegerColumnType())
                 }, indexes = listOf(
                         CompilationResultChecker.IndexWrapper("idx1", false, listOf("c1")),
-                        CompilationResultChecker.IndexWrapper("idx2", true, listOf("c2")),
-                        CompilationResultChecker.IndexWrapper("idx3", false, listOf("c1"))
+                        CompilationResultChecker.IndexWrapper("idx2", false, listOf("c2"))
+                ))
+            }
+        })
+    }
+
+    @Test
+    fun uniqueIndexes() {
+        testByCompilation(listOf(UniqueIndexTable), {
+            with(TableChecker("UniqueIndexTable")) {
+                checkTableObject("unique_index_table", {
+                    checkColumnProperty("c1", "c1", IntegerColumnType())
+                    checkColumnProperty("c2", "c2", IntegerColumnType())
+                }, indexes = listOf(
+                        CompilationResultChecker.IndexWrapper("idx1", true, listOf("c1")),
+                        CompilationResultChecker.IndexWrapper("idx2", true, listOf("c1", "c2"))
                 ))
             }
         }, excludedDbList = listOf(TestDB.H2, TestDB.H2_MYSQL))
