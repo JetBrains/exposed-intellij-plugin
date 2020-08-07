@@ -14,7 +14,11 @@ import org.jetbrains.exposed.sql.Table as ExposedTable
 
 
 // TODO support schemas
-class ExposedCodeGenerator(private val tables: List<Table>, private val configFileName: String? = null) {
+class ExposedCodeGenerator(
+        private val tables: List<Table>,
+        private val configFileName: String? = null,
+        private val dialect: DBDialect? = null
+) {
     private val columnToPropertySpec = mutableMapOf<Column, PropertySpec>()
     private val columnToTableSpec = mutableMapOf<Column, TypeSpec>()
 
@@ -23,7 +27,7 @@ class ExposedCodeGenerator(private val tables: List<Table>, private val configFi
 
     // returns a TypeSpec used for Exposed Kotlin code generation
     private fun generateExposedTable(table: Table): TypeSpec {
-        val builder = TableBuilder(table, columnToPropertySpec, columnToTableSpec, columnNameToInitializerBlock)
+        val builder = TableBuilder(table, columnToPropertySpec, columnToTableSpec, columnNameToInitializerBlock, dialect)
 
         builder.generateExposedTableDeclaration()
         builder.generateExposedTableColumns()

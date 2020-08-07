@@ -10,3 +10,15 @@ object MaxSize {
     const val MAX_DECIMAL_SCALE = 16383
 }
 
+enum class DBDialect {
+    H2,
+    POSTGRESQL,
+    SQLITE,
+    MYSQL,
+    ORACLE,
+    MARIADB,
+    SQLSERVER
+}
+
+// these dialects automatically create an non-unique index on the referencing column of a foreign key constraint
+val ForeignKeyAutomaticIndexDBs = setOf(DBDialect.H2, DBDialect.MYSQL)

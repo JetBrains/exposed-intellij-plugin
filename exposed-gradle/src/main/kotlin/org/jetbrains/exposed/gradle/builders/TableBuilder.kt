@@ -17,7 +17,8 @@ class TableBuilder(
         table: Table,
         private val columnToPropertySpec: MutableMap<Column, PropertySpec>,
         private val columnToTableSpec: MutableMap<Column, TypeSpec>,
-        private val columnNameToInitializerBlock: Map<String, String>
+        private val columnNameToInitializerBlock: Map<String, String>,
+        private val dialect: DBDialect? = null
 ) {
     private val tableInfo = TableInfo(table)
     private val builder = TypeSpec.objectBuilder(getObjectNameForTable(table))
@@ -52,15 +53,15 @@ class TableBuilder(
                 val columnMapping = columnNameToInitializerBlock[getColumnConfigName(column)]
                 val columnBuilder = if (columnMapping != null) {
                     if (column == idColumn) {
-                        MappedIdColumnBuilder(column, columnMapping)
+                        MappedIdColumnBuilder(column, columnMapping, dialect)
                     } else {
-                        MappedColumnBuilder(column, columnMapping)
+                        MappedColumnBuilder(column, columnMapping, dialect)
                     }
                 } else {
                     if (column == idColumn) {
-                        IdColumnBuilder(column)
+                        IdColumnBuilder(column, dialect)
                     } else {
-                        ColumnBuilder(column)
+                        ColumnBuilder(column, dialect)
                     }
                 }
                 columnBuilder.generateExposedColumnInitializer(columnToPropertySpec, columnToTableSpec)
@@ -94,6 +95,7 @@ class TableBuilder(
     }
 
     fun generateExposedTableMulticolumnIndexes() {
+        tableInfo.table.indexes.forEach{ println("${it.name} ${it.isUnique}") }
         val indexes = tableInfo.table.indexes.filter { it.columns.size > 1 || it.indexType !in listOf(IndexType.other, IndexType.unknown)}
         if (indexes.isEmpty()) {
             return
@@ -101,6 +103,9 @@ class TableBuilder(
 
         builder.addInitializerBlock(buildCodeBlock {
             for (index in indexes) {
+                if (tableInfo.primaryKeyColumns.containsAll(index.columns) && tableInfo.primaryKeyColumns.size == index.columns.size) {
+                    continue
+                }
                 val name = getIndexName(index)
                 // TODO nullability
                 val columns = index.columns.map { columnToPropertySpec[it]!!.name }

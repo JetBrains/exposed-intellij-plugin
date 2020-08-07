@@ -98,12 +98,15 @@ open class ExposedCodeGeneratorCompilationTest : DatabaseTestsBase() {
                     primaryKeyColumns: List<String> = emptyList(),
                     indexes: List<IndexWrapper> = emptyList()
             ) {
+                // check table object
                 assertThat(tableObjectClass.supertypes).hasSize(1)
                 assertThat(tableObjectClass.supertypes[0].classifier).isEqualTo(tableClass)
                 assertThat((tableObjectInstance as Table).tableName).isEqualTo(tableName)
 
+                // check columns
                 checkPropertiesBlock()
 
+                // check primary key
                 if (primaryKeyColumns.isNotEmpty()) {
                     assertThat(tableObjectInstance.primaryKey).isNotNull
                     assertThat(tableObjectInstance.primaryKey!!.columns).hasSameSizeAs(primaryKeyColumns)
@@ -114,13 +117,18 @@ open class ExposedCodeGeneratorCompilationTest : DatabaseTestsBase() {
                     assertThat(tableObjectInstance.primaryKey).isNull()
                 }
 
-                assertThat(indexes).hasSameSizeAs(tableObjectInstance.indices)
+                // check indexes
+                assertThat(tableObjectInstance.indices).hasSameSizeAs(indexes)
                 for (index in indexes) {
-                    val tableIndex = tableObjectInstance.indices.find { it.indexName == index.name }
+                    val tableIndex = if (index.name != null) {
+                        tableObjectInstance.indices.find { it.indexName == index.name }
+                    } else {
+                        // when the name is irrelevant
+                        tableObjectInstance.indices.find { it.unique == index.isUnique && it.columns.map { it.name }.toSet() == index.columnNames }
+                    }
                     assertThat(tableIndex).isNotNull
                     assertThat(tableIndex!!.unique).isEqualTo(index.isUnique)
-                    assertThat(index.columnNames).hasSameSizeAs(tableIndex.columns)
-                    assertThat(index.columnNames).allSatisfy { name -> tableIndex.columns.any { it.name == name } }
+                    assertThat(index.columnNames).isEqualTo(tableIndex.columns.map { it.name }.toSet())
                     assertThat(tableIndex.indexType).isEqualTo(index.type)
                 }
             }
@@ -131,7 +139,7 @@ open class ExposedCodeGeneratorCompilationTest : DatabaseTestsBase() {
         data class IndexWrapper(
                 val name: String? = null,
                 val isUnique: Boolean = false,
-                val columnNames: List<String> = emptyList(),
+                val columnNames: Set<String> = emptySet(),
                 val type: String? = null
         )
     }
@@ -160,6 +168,8 @@ open class ExposedCodeGeneratorFromTablesTest : ExposedCodeGeneratorCompilationT
             configFileName: String? = null
     ) {
         withTables(excludeSettings = excludedDbList, tables = *tables.toTypedArray(), statement = {
+            println(it.name)
+
             // TODO adapt for multiple file specs
             val fileSpec = getDatabaseExposedFileSpec(it, tableName, configFileName)[0]
             val result = compileExposedFile(fileSpec)

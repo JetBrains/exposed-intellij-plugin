@@ -14,12 +14,24 @@ fun getDatabaseExposedFileSpec(db: TestDB, tableName: String? = null, configFile
     val metadataGetter = MetadataGetter(db.connection, db.user, db.pass)
     val tables = metadataGetter.getTables().filterUtilTables()
     val exposedCodeGenerator = if (tableName != null) {
-        ExposedCodeGenerator(tables.filter { it.name.equals(tableName, ignoreCase = true) }, configFileName)
+        ExposedCodeGenerator(tables.filter { it.name.equals(tableName, ignoreCase = true) }, configFileName, testDBtoDialect[db])
     } else {
-        ExposedCodeGenerator(tables, configFileName)
+        ExposedCodeGenerator(tables, configFileName, testDBtoDialect[db])
     }
     return exposedCodeGenerator.generateExposedTables(db.name)
 }
 
 private fun List<schemacrawler.schema.Table>.filterUtilTables() = this.filterNot { it.fullName.startsWith("sys.") }
+
+val testDBtoDialect = mapOf(
+        TestDB.H2 to DBDialect.H2,
+        TestDB.H2_MYSQL to DBDialect.H2,
+        TestDB.SQLITE to DBDialect.SQLITE,
+        TestDB.MYSQL to DBDialect.MYSQL,
+        TestDB.POSTGRESQL to DBDialect.POSTGRESQL,
+        TestDB.POSTGRESQLNG to DBDialect.POSTGRESQL,
+        TestDB.ORACLE to DBDialect.ORACLE,
+        TestDB.MARIADB to DBDialect.MARIADB,
+        TestDB.SQLSERVER to DBDialect.SQLSERVER
+)
 

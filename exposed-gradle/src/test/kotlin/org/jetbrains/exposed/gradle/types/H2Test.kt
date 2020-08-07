@@ -126,4 +126,15 @@ class H2Test : ExposedCodeGeneratorDBTest("vartypes.sql", "h2", listOf(TestDB.H2
     fun miscTypes() = runTableTest("misc_types", "MiscTypes") {
         checkColumnProperty("m1", "m1", UUIDColumnType())
     }
+
+    @Test
+    fun uniqueIndex() = runTableTest("index_table") {
+        with(TableChecker("IndexTable")) {
+            checkTableObject("index_table", {
+                checkColumnProperty("i1", "i1", IntegerColumnType())
+                checkColumnProperty("i2", "i2", IntegerColumnType())
+                checkColumnProperty("i3", "i3", IntegerColumnType())
+            }, indexes = listOf(CompilationResultChecker.IndexWrapper("idx1", true, setOf("i1", "i3"))))
+        }
+    }
 }

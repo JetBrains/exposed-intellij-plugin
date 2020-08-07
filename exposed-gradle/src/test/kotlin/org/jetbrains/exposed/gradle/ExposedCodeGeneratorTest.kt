@@ -134,9 +134,9 @@ class ExposedCodeGeneratorTest : ExposedCodeGeneratorFromTablesTest() {
                     checkColumnProperty("c1", "c1", IntegerColumnType())
                     checkColumnProperty("c2", "c2", IntegerColumnType(), foreignKeyFrom = "c2", foreignKeyTarget = "c1")
                     checkColumnProperty("c3", "c3", IntegerColumnType())
-                })
+                }, indexes = listOf(CompilationResultChecker.IndexWrapper(isUnique = true, columnNames = setOf("c1"))))
             }
-        }, excludedDbList = listOf(TestDB.MYSQL, TestDB.POSTGRESQL, TestDB.POSTGRESQLNG))
+        })
     }
 
     @Test
@@ -146,7 +146,7 @@ class ExposedCodeGeneratorTest : ExposedCodeGeneratorFromTablesTest() {
                 checkTableObject("sample", {
                     checkColumnProperty("c1", "c1", IntegerColumnType())
                     checkColumnProperty("c2", "c2", TextColumnType())
-                })
+                }, indexes = listOf(CompilationResultChecker.IndexWrapper(isUnique = true, columnNames = setOf("c1"))))
             }
             with(TableChecker("SampleRef")) {
                 checkTableObject("sample_ref", {
@@ -155,7 +155,7 @@ class ExposedCodeGeneratorTest : ExposedCodeGeneratorFromTablesTest() {
                             foreignKeyFrom = "c2", foreignKeyTarget = "c1", foreignKeyTargetTable = "Sample")
                 })
             }
-        }, excludedDbList = listOf(TestDB.MYSQL, TestDB.POSTGRESQL, TestDB.POSTGRESQLNG))
+        })
     }
 
     @Test
@@ -240,7 +240,7 @@ class ExposedCodeGeneratorTest : ExposedCodeGeneratorFromTablesTest() {
                     checkColumnProperty("c1", "c1", IntegerColumnType())
                     checkColumnProperty("c2", "c2", TextColumnType())
                 }, indexes = listOf(
-                        CompilationResultChecker.IndexWrapper("custom_index_name", false, listOf("c1"), "HASH")
+                        CompilationResultChecker.IndexWrapper("custom_index_name", false, setOf("c1"), "HASH")
                 ))
             }
         }, excludedDbList = TestDB.enabledInTests() - listOf(TestDB.POSTGRESQL, TestDB.POSTGRESQLNG))
@@ -255,8 +255,8 @@ class ExposedCodeGeneratorTest : ExposedCodeGeneratorFromTablesTest() {
                     checkColumnProperty("c2", "c2", TextColumnType())
                     checkColumnProperty("c3", "c3", IntegerColumnType())
                 }, indexes = listOf(
-                        CompilationResultChecker.IndexWrapper("custom_index_name", false, listOf("c1", "c3")),
-                        CompilationResultChecker.IndexWrapper("custom_unique_index_name", true, listOf("c3"))
+                        CompilationResultChecker.IndexWrapper("custom_index_name", false, setOf("c1", "c3")),
+                        CompilationResultChecker.IndexWrapper("custom_unique_index_name", true, setOf("c3"))
                 ))
             }
         }, excludedDbList = listOf(TestDB.H2, TestDB.H2_MYSQL))
@@ -270,8 +270,8 @@ class ExposedCodeGeneratorTest : ExposedCodeGeneratorFromTablesTest() {
                     checkColumnProperty("c1", "c1", IntegerColumnType())
                     checkColumnProperty("c2", "c2", IntegerColumnType())
                 }, indexes = listOf(
-                        CompilationResultChecker.IndexWrapper("idx1", false, listOf("c1")),
-                        CompilationResultChecker.IndexWrapper("idx2", false, listOf("c2"))
+                        CompilationResultChecker.IndexWrapper("idx1", false, setOf("c1")),
+                        CompilationResultChecker.IndexWrapper("idx2", false, setOf("c2"))
                 ))
             }
         })
@@ -285,10 +285,25 @@ class ExposedCodeGeneratorTest : ExposedCodeGeneratorFromTablesTest() {
                     checkColumnProperty("c1", "c1", IntegerColumnType())
                     checkColumnProperty("c2", "c2", IntegerColumnType())
                 }, indexes = listOf(
-                        CompilationResultChecker.IndexWrapper("idx1", true, listOf("c1")),
-                        CompilationResultChecker.IndexWrapper("idx2", true, listOf("c1", "c2"))
+                        CompilationResultChecker.IndexWrapper("idx1", true, setOf("c2")),
+                        CompilationResultChecker.IndexWrapper("idx2", true, setOf("c1", "c2"))
                 ))
             }
         }, excludedDbList = listOf(TestDB.H2, TestDB.H2_MYSQL))
+    }
+
+    @Test
+    fun unnamedIndexes() {
+        testByCompilation(listOf(UnnamedIndexTable), {
+            with(TableChecker("UnnamedIndexTable")) {
+                checkTableObject("unnamed_index_table", {
+                    checkColumnProperty("c1", "c1", IntegerColumnType())
+                    checkColumnProperty("c2", "c2", IntegerColumnType())
+                }, indexes = listOf(
+                        CompilationResultChecker.IndexWrapper("unnamed_index_table_c2", false, setOf("c2")),
+                        CompilationResultChecker.IndexWrapper("unnamed_index_table_c1_c2", false, setOf("c1", "c2"))
+                ))
+            }
+        })
     }
 }

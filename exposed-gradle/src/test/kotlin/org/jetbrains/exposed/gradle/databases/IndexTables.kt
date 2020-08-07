@@ -35,3 +35,11 @@ object UniqueIndexTable : Table("unique_index_table") {
         uniqueIndex("idx2", c1, c2)
     }
 }
+
+object UnnamedIndexTable : Table("unnamed_index_table") {
+    val c1: Column<Int> = integer("c1")
+    val c2: Column<Int> = integer("c2").index()
+    init {
+        index(false, c1, c2)
+    }
+}
