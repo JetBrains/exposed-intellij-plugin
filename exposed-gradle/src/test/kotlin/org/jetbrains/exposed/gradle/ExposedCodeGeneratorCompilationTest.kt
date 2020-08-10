@@ -144,37 +144,35 @@ open class ExposedCodeGeneratorCompilationTest : DatabaseTestsBase() {
         )
     }
 
-    protected fun compileExposedFile(fileSpec: FileSpec): KotlinCompilation.Result {
-        val sb = StringBuilder()
-        fileSpec.writeTo(sb)
-        val kotlinSource = SourceFile.kotlin(fileSpec.name, sb.toString())
-        return KotlinCompilation().apply {
-            sources = listOf(kotlinSource)
+    protected fun compileExposedFile(vararg fileSpecs: FileSpec): KotlinCompilation.Result {
+        val kotlinSources = mutableListOf<SourceFile>()
+        for (fileSpec in fileSpecs) {
+            val sb = StringBuilder()
+            fileSpec.writeTo(sb)
+            kotlinSources.add(SourceFile.kotlin(fileSpec.name, sb.toString()))
+        }
 
+        return KotlinCompilation().apply {
+            sources = kotlinSources
             inheritClassPath = true
             messageOutputStream = System.out // see diagnostics in real time
         }.compile()
     }
-
-
 }
 
 open class ExposedCodeGeneratorFromTablesTest : ExposedCodeGeneratorCompilationTest() {
     fun testByCompilation(
             tables: List<Table>,
-            checkTablesBlock: CompilationResultChecker.() -> Unit,
+            vararg checkTablesBlocks: CompilationResultChecker.() -> Unit,
             excludedDbList: List<TestDB> = emptyList(),
             tableName: String? = null,
             configFileName: String? = null
     ) {
         withTables(excludeSettings = excludedDbList, tables = *tables.toTypedArray(), statement = {
-            // TODO adapt for multiple file specs
-            val fileSpec = getDatabaseExposedFileSpec(it, tableName, configFileName)[0]
-            val result = compileExposedFile(fileSpec)
-
-            // if it didn't compile then there might be imports missing, incorrect types, etc
+            val fileSpecs = getDatabaseExposedFileSpec(it, tableName, configFileName)
+            val result = compileExposedFile(*fileSpecs.toTypedArray())
             assertThat(result.exitCode).isEqualTo(KotlinCompilation.ExitCode.OK)
-            checkTablesBlock(CompilationResultChecker(result))
+            checkTablesBlocks.forEach { it(CompilationResultChecker(result)) }
         })
     }
 }

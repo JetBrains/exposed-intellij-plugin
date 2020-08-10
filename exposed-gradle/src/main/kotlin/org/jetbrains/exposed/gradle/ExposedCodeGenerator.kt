@@ -65,6 +65,7 @@ class ExposedCodeGenerator(
             for (table in tables) {
                 val fileSpec = FileSpec.builder(config.packageName, "${table.fullName.toCamelCase(capitalizeFirst = true)}.kt")
                 fileSpec.addType(generateExposedTable(table))
+                fileSpecs.add(fileSpec.build())
             }
 
             fileSpecs

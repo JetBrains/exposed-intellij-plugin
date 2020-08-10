@@ -1,17 +1,16 @@
 package org.jetbrains.exposed.gradle
 
 import com.tschuchort.compiletesting.KotlinCompilation
-import org.assertj.core.api.Assertions
 import org.assertj.core.api.Assertions.assertThat
 import org.jetbrains.exposed.dao.id.IdTable
 import org.jetbrains.exposed.dao.id.IntIdTable
 import org.jetbrains.exposed.dao.id.LongIdTable
 import org.jetbrains.exposed.dao.id.UUIDTable
-import org.jetbrains.exposed.sql.`java-time`.JavaLocalDateColumnType
-import org.jetbrains.exposed.sql.`java-time`.JavaLocalDateTimeColumnType
 import org.jetbrains.exposed.gradle.databases.*
 import org.jetbrains.exposed.gradle.tests.TestDB
 import org.jetbrains.exposed.sql.*
+import org.jetbrains.exposed.sql.`java-time`.JavaLocalDateColumnType
+import org.jetbrains.exposed.sql.`java-time`.JavaLocalDateTimeColumnType
 import org.junit.Test
 import java.nio.file.Paths
 
@@ -336,5 +335,25 @@ class ExposedCodeGeneratorTest : ExposedCodeGeneratorFromTablesTest() {
             assertThat(result.exitCode).isEqualTo(KotlinCompilation.ExitCode.OK)
             assertThat(result.classLoader.loadClass("IntegerTypes")).isNotNull
         }, excludeSettings = TestDB.enabledInTests() - listOf(TestDB.POSTGRESQL))
+    }
+
+    @Test
+    fun multipleFilesTest() {
+        testByCompilation(listOf(Sample, SampleRef), {
+            with(TableChecker("Sample")) {
+                checkTableObject("sample", {
+                    checkColumnProperty("c1", "c1", IntegerColumnType())
+                    checkColumnProperty("c2", "c2", TextColumnType())
+                }, indexes = listOf(CompilationResultChecker.IndexWrapper(isUnique = true, columnNames = setOf("c1"))))
+            }
+        }, {
+            with(TableChecker("SampleRef")) {
+                checkTableObject("sample_ref", {
+                    checkColumnProperty("c1", "c1", IntegerColumnType())
+                    checkColumnProperty("c2", "c2", IntegerColumnType(),
+                            foreignKeyFrom = "c2", foreignKeyTarget = "c1", foreignKeyTargetTable = "Sample")
+                })
+            }
+        }, configFileName = Paths.get(resourcesConfigFilesPath.toString(), "multipleFiles.yml").toString())
     }
 }
