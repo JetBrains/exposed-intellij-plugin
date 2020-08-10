@@ -102,7 +102,6 @@ open class ColumnBuilder(column: Column, private val dialect: DBDialect? = null)
 
     private fun CodeBlock.Builder.generateAutoIncrementCall(column: Column) {
         if (column.isAutoIncremented) {
-            // TODO is there a way to access those via reflection?
             add(".%M()", MemberName("", "autoIncrement"))
         }
     }

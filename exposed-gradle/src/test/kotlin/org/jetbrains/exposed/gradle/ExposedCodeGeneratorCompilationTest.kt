@@ -168,8 +168,6 @@ open class ExposedCodeGeneratorFromTablesTest : ExposedCodeGeneratorCompilationT
             configFileName: String? = null
     ) {
         withTables(excludeSettings = excludedDbList, tables = *tables.toTypedArray(), statement = {
-            println(it.name)
-
             // TODO adapt for multiple file specs
             val fileSpec = getDatabaseExposedFileSpec(it, tableName, configFileName)[0]
             val result = compileExposedFile(fileSpec)

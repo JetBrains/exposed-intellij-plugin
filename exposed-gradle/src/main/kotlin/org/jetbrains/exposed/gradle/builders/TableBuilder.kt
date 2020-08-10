@@ -95,7 +95,6 @@ class TableBuilder(
     }
 
     fun generateExposedTableMulticolumnIndexes() {
-        tableInfo.table.indexes.forEach{ println("${it.name} ${it.isUnique}") }
         val indexes = tableInfo.table.indexes.filter { it.columns.size > 1 || it.indexType !in listOf(IndexType.other, IndexType.unknown)}
         if (indexes.isEmpty()) {
             return
@@ -107,8 +106,10 @@ class TableBuilder(
                     continue
                 }
                 val name = getIndexName(index)
-                // TODO nullability
-                val columns = index.columns.map { columnToPropertySpec[it]!!.name }
+                val columns = index.columns.map {
+                    columnToPropertySpec[it]?.name
+                            ?: throw ReferencedColumnNotFoundException("Column ${it.fullName} definition not generated, can't create index.")
+                }
                 val indexType = indexTypeName[index.indexType]
                 val indexTypeString = if (indexType != null) ", indexType = \"$indexType\"" else ""
                 if (index.isUnique) {
