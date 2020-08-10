@@ -1,6 +1,7 @@
 package org.jetbrains.exposed.gradle.types
 
 import org.jetbrains.exposed.dao.id.LongIdTable
+import org.jetbrains.exposed.gradle.CompilationResultChecker
 import org.jetbrains.exposed.gradle.ExposedCodeGeneratorDBTest
 import org.jetbrains.exposed.gradle.tests.TestDB
 import org.jetbrains.exposed.sql.*

@@ -13,137 +13,137 @@ import java.nio.file.Paths
 import kotlin.reflect.KClass
 import kotlin.reflect.full.memberProperties
 
-open class ExposedCodeGeneratorCompilationTest : DatabaseTestsBase() {
-    class CompilationResultChecker(private val result: KotlinCompilation.Result) {
-        inner class TableChecker(tablePropertyName: String, tablePackageName: String = "") {
-            private val packagePrefix = formPackageName(tablePackageName)
-            private val tableObjectClass = result.classLoader.loadClass("$packagePrefix$tablePropertyName").kotlin
-            private val tableObjectInstance = tableObjectClass.objectInstance!!
+class CompilationResultChecker(private val result: KotlinCompilation.Result) {
+    inner class TableChecker(tablePropertyName: String, tablePackageName: String = "") {
+        private val packagePrefix = formPackageName(tablePackageName)
+        private val tableObjectClass = result.classLoader.loadClass("$packagePrefix$tablePropertyName").kotlin
+        private val tableObjectInstance = tableObjectClass.objectInstance!!
 
-            fun checkColumnProperty(
-                    columnPropertyName: String,
-                    columnName: String,
-                    columnType: ColumnType,
-                    isNullable: Boolean = false,
-                    isAutoIncremented: Boolean = false,
-                    isEntityId: Boolean = false,
-                    foreignKeyFrom: String? = null,
-                    foreignKeyTarget: String? = null,
-                    foreignKeyTargetTable: String? = null
-            ) {
-                val property = tableObjectInstance::class.memberProperties.find { it.name == columnPropertyName } ?: fail("Property $columnPropertyName not found.")
+        fun checkColumnProperty(
+                columnPropertyName: String,
+                columnName: String,
+                columnType: ColumnType,
+                isNullable: Boolean = false,
+                isAutoIncremented: Boolean = false,
+                isEntityId: Boolean = false,
+                foreignKeyFrom: String? = null,
+                foreignKeyTarget: String? = null,
+                foreignKeyTargetTable: String? = null
+        ) {
+            val property = tableObjectInstance::class.memberProperties.find { it.name == columnPropertyName } ?: fail("Property $columnPropertyName not found.")
 
-                assertThat(property.returnType.classifier).isEqualTo(Column::class)
+            assertThat(property.returnType.classifier).isEqualTo(Column::class)
 
-                val columnValue = property.getter.call(tableObjectInstance)
-                val type = (columnValue as Column<*>).columnType
-                val name = columnValue.name
+            val columnValue = property.getter.call(tableObjectInstance)
+            val type = (columnValue as Column<*>).columnType
+            val name = columnValue.name
 
-                when {
-                    isEntityId -> {
-                        assertThat(type).isInstanceOf(EntityIDColumnType::class.java)
-                        val idColumnType = (type as EntityIDColumnType<*>).idColumn.columnType
-                        val columnDataType = if (columnType is IntegerColumnType || columnType is LongColumnType) {
-                            assertThat(idColumnType).isInstanceOf(AutoIncColumnType::class.java)
-                            (idColumnType as AutoIncColumnType).delegate
-                        } else {
-                            idColumnType
-                        }
-                        assertThat(columnDataType).isNotInstanceOf(AutoIncColumnType::class.java)
-                        assertThat(columnDataType).isEqualTo(columnType)
-                    }
-                    isAutoIncremented -> {
-                        assertThat(type).isInstanceOf(AutoIncColumnType::class.java)
-                        assertThat((type as AutoIncColumnType).delegate).isEqualTo(columnType)
-                    }
-                    else -> {
-
-                        assertThat(type).isNotInstanceOf(AutoIncColumnType::class.java)
-
-                        assertThat(type).isEqualTo(columnType)
-                    }
-                }
-
-                assertThat(type.nullable).isEqualTo(isNullable)
-
-                // assert additional arguments
-                // TODO remove once it's fixed in Exposed
-                when (type) {
-                    is CharColumnType -> assertThat(type.colLength).isEqualTo((columnType as CharColumnType).colLength)
-                }
-
-                assertThat(name).isEqualTo(columnName)
-
-                if (foreignKeyTarget != null && foreignKeyFrom != null) {
-                    val foreignKey = columnValue.foreignKey
-                    assertThat(foreignKey).isNotNull
-                    assertThat(foreignKey!!.from).isEqualTo(columnValue)
-                    val foreignKeyTargetTableObject = if (foreignKeyTargetTable == null || foreignKeyTargetTable == tableObjectInstance::class.simpleName) {
-                        tableObjectInstance
+            when {
+                isEntityId -> {
+                    assertThat(type).isInstanceOf(EntityIDColumnType::class.java)
+                    val idColumnType = (type as EntityIDColumnType<*>).idColumn.columnType
+                    val columnDataType = if (columnType is IntegerColumnType || columnType is LongColumnType) {
+                        assertThat(idColumnType).isInstanceOf(AutoIncColumnType::class.java)
+                        (idColumnType as AutoIncColumnType).delegate
                     } else {
-                        result.classLoader.loadClass("${formPackageName(tableObjectInstance::class.java.packageName)}$foreignKeyTargetTable").kotlin.objectInstance
-                    }!!
-                    val target = foreignKeyTargetTableObject::class.memberProperties
-                            .find { it.name == foreignKey.targetColumn.toLowerCase() }!!.getter.call(foreignKeyTargetTableObject)
-                    assertThat(foreignKey.target).isEqualTo(target)
-                } else {
-                    assertThat(columnValue.foreignKey).isNull()
+                        idColumnType
+                    }
+                    assertThat(columnDataType).isNotInstanceOf(AutoIncColumnType::class.java)
+                    assertThat(columnDataType).isEqualTo(columnType)
+                }
+                isAutoIncremented -> {
+                    assertThat(type).isInstanceOf(AutoIncColumnType::class.java)
+                    assertThat((type as AutoIncColumnType).delegate).isEqualTo(columnType)
+                }
+                else -> {
+
+                    assertThat(type).isNotInstanceOf(AutoIncColumnType::class.java)
+
+                    assertThat(type).isEqualTo(columnType)
                 }
             }
 
-            fun checkTableObject(
-                    tableName: String,
-                    checkPropertiesBlock: () -> Unit,
-                    tableClass: KClass<*> = Table::class,
-                    primaryKeyColumns: List<String> = emptyList(),
-                    indexes: List<IndexWrapper> = emptyList()
-            ) {
-                // check table object
-                assertThat(tableObjectClass.supertypes).hasSize(1)
-                assertThat(tableObjectClass.supertypes[0].classifier).isEqualTo(tableClass)
-                assertThat((tableObjectInstance as Table).tableName).isEqualTo(tableName)
+            assertThat(type.nullable).isEqualTo(isNullable)
 
-                // check columns
-                checkPropertiesBlock()
-
-                // check primary key
-                if (primaryKeyColumns.isNotEmpty()) {
-                    assertThat(tableObjectInstance.primaryKey).isNotNull
-                    assertThat(tableObjectInstance.primaryKey!!.columns).hasSameSizeAs(primaryKeyColumns)
-                    primaryKeyColumns.forEach { column ->
-                        assertThat(tableObjectInstance.primaryKey!!.columns).anyMatch { it.name == column }
-                    }
-                } else {
-                    assertThat(tableObjectInstance.primaryKey).isNull()
-                }
-
-                // check indexes
-                assertThat(tableObjectInstance.indices).hasSameSizeAs(indexes)
-                for (index in indexes) {
-                    val tableIndex = if (index.name != null) {
-                        tableObjectInstance.indices.find { it.indexName == index.name }
-                    } else {
-                        // when the name is irrelevant
-                        tableObjectInstance.indices.find { it.unique == index.isUnique && it.columns.map { it.name }.toSet() == index.columnNames }
-                    }
-                    assertThat(tableIndex).isNotNull
-                    assertThat(tableIndex!!.unique).isEqualTo(index.isUnique)
-                    assertThat(index.columnNames).isEqualTo(tableIndex.columns.map { it.name }.toSet())
-                    assertThat(tableIndex.indexType).isEqualTo(index.type)
-                }
+            // assert additional arguments
+            // TODO remove once it's fixed in Exposed
+            when (type) {
+                is CharColumnType -> assertThat(type.colLength).isEqualTo((columnType as CharColumnType).colLength)
             }
 
-            private fun formPackageName(packageName: String) = if (packageName.isNotBlank()) "$packageName." else ""
+            assertThat(name).isEqualTo(columnName)
+
+            if (foreignKeyTarget != null && foreignKeyFrom != null) {
+                val foreignKey = columnValue.foreignKey
+                assertThat(foreignKey).isNotNull
+                assertThat(foreignKey!!.from).isEqualTo(columnValue)
+                val foreignKeyTargetTableObject = if (foreignKeyTargetTable == null || foreignKeyTargetTable == tableObjectInstance::class.simpleName) {
+                    tableObjectInstance
+                } else {
+                    result.classLoader.loadClass("${formPackageName(tableObjectInstance::class.java.packageName)}$foreignKeyTargetTable").kotlin.objectInstance
+                }!!
+                val target = foreignKeyTargetTableObject::class.memberProperties
+                        .find { it.name == foreignKey.targetColumn.toLowerCase() }!!.getter.call(foreignKeyTargetTableObject)
+                assertThat(foreignKey.target).isEqualTo(target)
+            } else {
+                assertThat(columnValue.foreignKey).isNull()
+            }
         }
 
-        data class IndexWrapper(
-                val name: String? = null,
-                val isUnique: Boolean = false,
-                val columnNames: Set<String> = emptySet(),
-                val type: String? = null
-        )
+        fun checkTableObject(
+                tableName: String,
+                checkPropertiesBlock: () -> Unit,
+                tableClass: KClass<*> = Table::class,
+                primaryKeyColumns: List<String> = emptyList(),
+                indexes: List<IndexWrapper> = emptyList()
+        ) {
+            // check table object
+            assertThat(tableObjectClass.supertypes).hasSize(1)
+            assertThat(tableObjectClass.supertypes[0].classifier).isEqualTo(tableClass)
+            assertThat((tableObjectInstance as Table).tableName).isEqualTo(tableName)
+
+            // check columns
+            checkPropertiesBlock()
+
+            // check primary key
+            if (primaryKeyColumns.isNotEmpty()) {
+                assertThat(tableObjectInstance.primaryKey).isNotNull
+                assertThat(tableObjectInstance.primaryKey!!.columns).hasSameSizeAs(primaryKeyColumns)
+                primaryKeyColumns.forEach { column ->
+                    assertThat(tableObjectInstance.primaryKey!!.columns).anyMatch { it.name == column }
+                }
+            } else {
+                assertThat(tableObjectInstance.primaryKey).isNull()
+            }
+
+            // check indexes
+            assertThat(tableObjectInstance.indices).hasSameSizeAs(indexes)
+            for (index in indexes) {
+                val tableIndex = if (index.name != null) {
+                    tableObjectInstance.indices.find { it.indexName == index.name }
+                } else {
+                    // when the name is irrelevant
+                    tableObjectInstance.indices.find { it.unique == index.isUnique && it.columns.map { it.name }.toSet() == index.columnNames }
+                }
+                assertThat(tableIndex).isNotNull
+                assertThat(tableIndex!!.unique).isEqualTo(index.isUnique)
+                assertThat(index.columnNames).isEqualTo(tableIndex.columns.map { it.name }.toSet())
+                assertThat(tableIndex.indexType).isEqualTo(index.type)
+            }
+        }
+
+        private fun formPackageName(packageName: String) = if (packageName.isNotBlank()) "$packageName." else ""
     }
 
+    data class IndexWrapper(
+            val name: String? = null,
+            val isUnique: Boolean = false,
+            val columnNames: Set<String> = emptySet(),
+            val type: String? = null
+    )
+}
+
+open class ExposedCodeGeneratorCompilationTest : DatabaseTestsBase() {
     protected fun compileExposedFile(vararg fileSpecs: FileSpec): KotlinCompilation.Result {
         val kotlinSources = mutableListOf<SourceFile>()
         for (fileSpec in fileSpecs) {
@@ -175,6 +175,23 @@ open class ExposedCodeGeneratorFromTablesTest : ExposedCodeGeneratorCompilationT
             checkTablesBlocks.forEach { it(CompilationResultChecker(result)) }
         })
     }
+
+    fun testTableByCompilation(
+            table: Table,
+            checkColumnsBlock: CompilationResultChecker.TableChecker.() -> Unit,
+            excludedDbList: List<TestDB> = emptyList(),
+            configFileName: String? = null,
+            tableClass: KClass<*> = Table::class,
+            primaryKeyColumns: List<String> = emptyList(),
+            indexes: List<CompilationResultChecker.IndexWrapper> = emptyList()
+    ) {
+        testByCompilation(listOf(table), {
+            with(TableChecker(table::class.simpleName!!)) {
+                checkTableObject(table.tableName, { checkColumnsBlock() }, tableClass, primaryKeyColumns, indexes)
+            }
+        }, excludedDbList = excludedDbList, configFileName = configFileName)
+    }
+
 }
 
 open class ExposedCodeGeneratorFromScriptTest : ExposedCodeGeneratorCompilationTest() {
@@ -238,7 +255,7 @@ open class ExposedCodeGeneratorDBTest(
                 Paths.get(resourcesDatabasesPath.toString(), dbDirectoryName),
                 {
                     with(TableChecker(tableObjectName)) {
-                        checkTableObject(tableName, { checkColumnsBlock(this) })
+                        checkTableObject(tableName, { checkColumnsBlock() })
                     }
                 },
                 TestDB.enabledInTests() - db,
