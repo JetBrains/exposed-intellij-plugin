@@ -37,7 +37,7 @@ open class ColumnBuilder(column: Column, private val dialect: DBDialect? = null)
     ) {
         val initializerBlock = buildCodeBlock {
             generateExposedColumnFunctionCall(columnInfo)
-            generateExposedColumnProperties(columnInfo, columnToPropertySpec, columnToTableSpec)
+            generateExposedColumnConstraints(columnInfo, columnToPropertySpec, columnToTableSpec)
         }
 
         builder.initializer(initializerBlock)
@@ -100,17 +100,18 @@ open class ColumnBuilder(column: Column, private val dialect: DBDialect? = null)
         }
     }
 
-    open fun CodeBlock.Builder.generateExposedColumnProperties(
-            columnInfo: ColumnInfo,
-            columnToPropertySpec: Map<Column, PropertySpec>,
-            columnToTableSpec: Map<Column, TypeSpec>
-    ) {
-        val column = columnInfo.column
+    private fun CodeBlock.Builder.generateAutoIncrementCall(column: Column) {
         if (column.isAutoIncremented) {
             // TODO is there a way to access those via reflection?
             add(".%M()", MemberName("", "autoIncrement"))
         }
+    }
 
+    private fun CodeBlock.Builder.generateForeignKeyCall(
+            column: Column,
+            columnToPropertySpec: Map<Column, PropertySpec>,
+            columnToTableSpec: Map<Column, TypeSpec>
+    ) {
         if (column.referencedColumn != null) {
             val referencedColumnProperty = columnToPropertySpec[column.referencedColumn]
                     ?: throw ReferencedColumnNotFoundException(
@@ -128,11 +129,15 @@ open class ColumnBuilder(column: Column, private val dialect: DBDialect? = null)
                         referencedColumnProperty)
             }
         }
+    }
 
+    private fun CodeBlock.Builder.generateNullableCall(column: Column) {
         if (column.isNullable && !column.isPartOfPrimaryKey) {
             add(".%M()", MemberName("", "nullable"))
         }
+    }
 
+    private fun CodeBlock.Builder.generateIndexCall(column: Column) {
         if (column.isPartOfIndex) {
             val indexes = column.parent.indexes.filter { it.contains(column) }
                     .filter { it.columns.size == 1 && (it.indexType in listOf(IndexType.other, IndexType.unknown)) }
@@ -163,6 +168,26 @@ open class ColumnBuilder(column: Column, private val dialect: DBDialect? = null)
         }
     }
 
+    protected fun CodeBlock.Builder.generateBasicConstraints(
+            column: Column,
+            columnToPropertySpec: Map<Column, PropertySpec>,
+            columnToTableSpec: Map<Column, TypeSpec>
+    ) {
+        generateAutoIncrementCall(column)
+        generateForeignKeyCall(column, columnToPropertySpec, columnToTableSpec)
+        generateIndexCall(column)
+    }
+
+    open fun CodeBlock.Builder.generateExposedColumnConstraints(
+            columnInfo: ColumnInfo,
+            columnToPropertySpec: Map<Column, PropertySpec>,
+            columnToTableSpec: Map<Column, TypeSpec>
+    ) {
+        val column = columnInfo.column
+        generateBasicConstraints(column, columnToPropertySpec, columnToTableSpec)
+        generateNullableCall(column)
+    }
+
     private fun getColumnFunctionArguments(): List<String> {
         // for columns like 'varchar(30)' the arguments are contained in the full name
         val columnType = columnInfo.column.columnDataType.fullName
@@ -188,14 +213,12 @@ class IdColumnBuilder(column: Column, dialect: DBDialect? = null) : ColumnBuilde
             KModifier.OVERRIDE
     )
 
-    override fun CodeBlock.Builder.generateExposedColumnProperties(
+    override fun CodeBlock.Builder.generateExposedColumnConstraints(
             columnInfo: ColumnInfo,
             columnToPropertySpec: Map<Column, PropertySpec>,
             columnToTableSpec: Map<Column, TypeSpec>
     ) {
-        // it can't be nullable
-        // it can't be auto-incremented because that's only for int and long and it's handled by respective classes
-        // TODO can it reference other columns?
+        generateBasicConstraints(columnInfo.column, columnToPropertySpec, columnToTableSpec)
         add(".%M()", MemberName("", "entityId"))
     }
 }

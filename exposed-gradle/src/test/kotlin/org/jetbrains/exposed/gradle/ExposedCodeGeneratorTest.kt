@@ -306,4 +306,16 @@ class ExposedCodeGeneratorTest : ExposedCodeGeneratorFromTablesTest() {
             }
         })
     }
+
+    @Test
+    fun multipleConstraints() {
+        testByCompilation(listOf(MultipleConstraintsTable), {
+            with(TableChecker("MultipleConstraintsTable")) {
+                checkTableObject("multiple_constraints_table", {
+                    checkColumnProperty("c1", "c1", IntegerColumnType(), isAutoIncremented = true)
+                    checkColumnProperty("c2", "c2", IntegerColumnType().apply { nullable = true }, isNullable = true, foreignKeyFrom = "c2", foreignKeyTarget = "c1")
+                }, indexes = listOf(CompilationResultChecker.IndexWrapper(isUnique = true, columnNames = setOf("c1"))))
+            }
+        }, excludedDbList = listOf(TestDB.SQLITE, TestDB.MYSQL))
+    }
 }
