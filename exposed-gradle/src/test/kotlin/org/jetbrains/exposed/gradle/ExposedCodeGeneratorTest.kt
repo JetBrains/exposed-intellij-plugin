@@ -1,5 +1,8 @@
 package org.jetbrains.exposed.gradle
 
+import com.tschuchort.compiletesting.KotlinCompilation
+import org.assertj.core.api.Assertions
+import org.assertj.core.api.Assertions.assertThat
 import org.jetbrains.exposed.dao.id.IdTable
 import org.jetbrains.exposed.dao.id.IntIdTable
 import org.jetbrains.exposed.dao.id.LongIdTable
@@ -317,5 +320,21 @@ class ExposedCodeGeneratorTest : ExposedCodeGeneratorFromTablesTest() {
                 }, indexes = listOf(CompilationResultChecker.IndexWrapper(isUnique = true, columnNames = setOf("c1"))))
             }
         }, excludedDbList = listOf(TestDB.SQLITE, TestDB.MYSQL))
+    }
+
+    // check db-host-port connection manually
+    @Test
+    fun connection() {
+        withTables(tables = *arrayOf(IntegerTypes), statement = {
+            val metadataGetter = MetadataGetter("postgresql", "template1", "postgres", "", "localhost", "12346")
+            val tables = metadataGetter.getTables()
+
+            val exposedCodeGenerator = ExposedCodeGenerator(tables)
+            val fileSpec = exposedCodeGenerator.generateExposedTables(db.name)[0]
+
+            val result = compileExposedFile(fileSpec)
+            assertThat(result.exitCode).isEqualTo(KotlinCompilation.ExitCode.OK)
+            assertThat(result.classLoader.loadClass("IntegerTypes")).isNotNull
+        }, excludeSettings = TestDB.enabledInTests() - listOf(TestDB.POSTGRESQL))
     }
 }
