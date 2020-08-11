@@ -261,7 +261,14 @@ class ExposedCodeGeneratorTest : ExposedCodeGeneratorFromTablesTest() {
     fun multipleConstraints() {
         testTableByCompilation(MultipleConstraintsTable, {
             checkColumnProperty("c1", "c1", IntegerColumnType(), isAutoIncremented = true)
-            checkColumnProperty("c2", "c2", IntegerColumnType().apply { nullable = true }, isNullable = true, foreignKeyFrom = "c2", foreignKeyTarget = "c1")
+            checkColumnProperty(
+                    "c2",
+                    "c2",
+                    IntegerColumnType().apply { nullable = true },
+                    isNullable = true,
+                    foreignKeyFrom = "c2",
+                    foreignKeyTarget = "c1"
+            )
         }, excludedDbList = listOf(TestDB.SQLITE, TestDB.MYSQL), indexes = listOf(CompilationResultChecker.IndexWrapper(isUnique = true, columnNames = setOf("c1"))))
     }
 
@@ -299,5 +306,18 @@ class ExposedCodeGeneratorTest : ExposedCodeGeneratorFromTablesTest() {
                 })
             }
         }, configFileName = Paths.get(resourcesConfigFilesPath.toString(), "multipleFiles.yml").toString())
+    }
+
+    // this test basically only checks that the code compiles since Exposed doesn't expose check constraints
+    // also works with PostgreSQL only, because SchemaCrawler offers this functionality for PostgresSQL/MySQL/SQLite only
+    // but the latter two don't get that information retrieved somehow (library bug?)
+    @Test
+    fun checkConstraint() {
+        testTableByCompilation(CheckTable, {
+            checkColumnProperty("c1", "c1", IntegerColumnType())
+            checkColumnProperty("c2", "c2", IntegerColumnType())
+            checkColumnProperty("c3", "c3", IntegerColumnType())
+            checkColumnProperty("c4", "c4", IntegerColumnType())
+        }, excludedDbList = TestDB.enabledInTests() - listOf(TestDB.POSTGRESQL, TestDB.POSTGRESQLNG))
     }
 }

@@ -1,5 +1,10 @@
 package org.jetbrains.exposed.gradle.builders
 
+import com.facebook.presto.sql.parser.ParsingOptions
+import com.facebook.presto.sql.parser.SqlParser
+import com.facebook.presto.sql.tree.ComparisonExpression
+import com.facebook.presto.sql.tree.Expression
+import com.facebook.presto.sql.tree.LogicalBinaryExpression
 import com.squareup.kotlinpoet.*
 import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
 import org.jetbrains.exposed.dao.id.EntityID
@@ -8,6 +13,8 @@ import org.jetbrains.exposed.gradle.info.ColumnInfo
 import org.jetbrains.exposed.sql.statements.api.ExposedBlob
 import schemacrawler.schema.Column
 import schemacrawler.schema.IndexType
+import schemacrawler.schema.TableConstraint
+import schemacrawler.schema.TableConstraintType
 import java.math.BigDecimal
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -167,6 +174,73 @@ open class ColumnBuilder(column: Column, private val dialect: DBDialect? = null)
         }
     }
 
+    private fun CodeBlock.Builder.generateCheckConstraints(column: Column) {
+        val tableConstraints = column.parent.tableConstraints
+                .filter { it.type == TableConstraintType.check }
+                // it's better to check for `it.columns == listOf(column)` but there's a SchemaCrawler problem with thsi
+                .filter { column.name in it.definition }
+        tableConstraints.forEach {
+            generateCheckConstraint(it, column)
+        }
+    }
+
+    private fun CodeBlock.Builder.generateCheckConstraint(constraint: TableConstraint, column: Column) {
+        if (constraint.type != TableConstraintType.check) {
+            return
+        }
+
+        val constraintExpr = SqlParser().createExpression(constraint.definition, ParsingOptions.builder().build())
+        add(generateConstraintFunctionCall(constraintExpr, column))
+    }
+
+    private fun generateConstraintFunctionCall(expr: Expression, column: Column): CodeBlock = when (expr) {
+        is LogicalBinaryExpression -> {
+            buildCodeBlock {
+                add(generateConstraintFunctionCall(expr.left, column))
+                add(generateConstraintFunctionCall(expr.right, column))
+            }
+        }
+        is ComparisonExpression -> {
+            buildCodeBlock {
+                add(".%N{ it", MemberName("", "check"))
+                add(generateComparisonFunctionCall(expr, column))
+                add(" }")
+            }
+        }
+        else -> CodeBlock.of("")
+    }
+
+    // always in form of [column on which the constraint is created] [operator] [constraint value]
+    private fun normalizeExpression(expr: ComparisonExpression, column: Column): ComparisonExpression {
+        val switch = column.name !in expr.left.toString()
+        if (!switch) {
+            return expr
+        }
+        val operator =
+        when(expr.operator) {
+            ComparisonExpression.Operator.LESS_THAN -> ComparisonExpression.Operator.GREATER_THAN
+            ComparisonExpression.Operator.LESS_THAN_OR_EQUAL -> ComparisonExpression.Operator.GREATER_THAN_OR_EQUAL
+            ComparisonExpression.Operator.GREATER_THAN -> ComparisonExpression.Operator.LESS_THAN
+            ComparisonExpression.Operator.GREATER_THAN_OR_EQUAL -> ComparisonExpression.Operator.LESS_THAN_OR_EQUAL
+            else -> expr.operator
+        }
+        return ComparisonExpression(operator, expr.right, expr.left)
+    }
+
+    private fun generateComparisonFunctionCall(expr: ComparisonExpression, column: Column): CodeBlock {
+        val expression = normalizeExpression(expr, column)
+        val right = expression.right
+        return when (expression.operator) {
+            ComparisonExpression.Operator.EQUAL -> CodeBlock.of(".%N($right)", MemberName("", "eq"))
+            ComparisonExpression.Operator.NOT_EQUAL -> CodeBlock.of(".%N($right)", MemberName("", "neq"))
+            ComparisonExpression.Operator.LESS_THAN -> CodeBlock.of(".%N($right)", MemberName("", "less"))
+            ComparisonExpression.Operator.LESS_THAN_OR_EQUAL -> CodeBlock.of(".%N($right)", MemberName("", "lessEq"))
+            ComparisonExpression.Operator.GREATER_THAN -> CodeBlock.of(".%N($right)", MemberName("", "greater"))
+            ComparisonExpression.Operator.GREATER_THAN_OR_EQUAL -> CodeBlock.of(".%N($right)", MemberName("", "greaterEq"))
+            else -> CodeBlock.of("")
+        }
+    }
+
     protected fun CodeBlock.Builder.generateBasicConstraints(
             column: Column,
             columnToPropertySpec: Map<Column, PropertySpec>,
@@ -175,6 +249,7 @@ open class ColumnBuilder(column: Column, private val dialect: DBDialect? = null)
         generateAutoIncrementCall(column)
         generateForeignKeyCall(column, columnToPropertySpec, columnToTableSpec)
         generateIndexCall(column)
+        generateCheckConstraints(column)
     }
 
     open fun CodeBlock.Builder.generateExposedColumnConstraints(

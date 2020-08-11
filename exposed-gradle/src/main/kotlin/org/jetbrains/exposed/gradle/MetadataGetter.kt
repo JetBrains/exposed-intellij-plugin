@@ -1,13 +1,13 @@
 package org.jetbrains.exposed.gradle
 
 import schemacrawler.schema.Table
+import schemacrawler.schemacrawler.LoadOptionsBuilder
 import schemacrawler.schemacrawler.SchemaCrawlerOptionsBuilder
+import schemacrawler.schemacrawler.SchemaInfoLevelBuilder
 import schemacrawler.tools.databaseconnector.DatabaseConnectionSource
 import schemacrawler.tools.databaseconnector.SingleUseUserCredentials
 import schemacrawler.utility.SchemaCrawlerUtility
-import java.lang.StringBuilder
 
-// TODO parameters should include host, port
 class MetadataGetter {
     private val dataSource: DatabaseConnectionSource
 
@@ -47,12 +47,16 @@ class MetadataGetter {
         }
     }
 
-    // using the Table class from schemacrawler for now
     fun getTables(): List<Table> {
-        val catalog = SchemaCrawlerUtility.getCatalog(
-                dataSource.get(),
-                SchemaCrawlerOptionsBuilder.builder().toOptions()
-        )
+        val optionsBuilder = SchemaCrawlerOptionsBuilder.builder()
+                .withLoadOptions(LoadOptionsBuilder.builder()
+                        .withSchemaInfoLevel(SchemaInfoLevelBuilder.maximum())
+                        .toOptions()
+                )
+
+
+        val options = optionsBuilder.toOptions()
+        val catalog = SchemaCrawlerUtility.getCatalog(dataSource.get(), options)
         return sortTablesByDependencies(catalog.schemas.flatMap { catalog.getTables(it) })
     }
 }
