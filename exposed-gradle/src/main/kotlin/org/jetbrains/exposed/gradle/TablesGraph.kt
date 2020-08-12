@@ -25,6 +25,10 @@ private fun buildTableGraph(tables: List<Table>): SimpleDirectedGraph {
     return graph
 }
 
+/**
+ * Sorts [tables] in order of their dependencies
+ * so that if table A references table B, table B precedes table A in the resulting list.
+ */
 fun sortTablesByDependencies(tables: List<Table>): List<Table> {
     val graph = buildTableGraph(tables)
     val topologicalSort = TopologicalSort(graph)

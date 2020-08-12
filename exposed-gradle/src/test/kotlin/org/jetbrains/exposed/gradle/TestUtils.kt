@@ -18,7 +18,7 @@ fun getDatabaseExposedFileSpec(db: TestDB, tableName: String? = null, configFile
     } else {
         ExposedCodeGenerator(tables, configFileName, testDBtoDialect[db])
     }
-    return exposedCodeGenerator.generateExposedTables(db.name)
+    return exposedCodeGenerator.generateExposedTables()
 }
 
 private fun List<schemacrawler.schema.Table>.filterUtilTables() = this.filterNot { it.fullName.startsWith("sys.") }

@@ -13,12 +13,18 @@ import java.nio.file.Paths
 import kotlin.reflect.KClass
 import kotlin.reflect.full.memberProperties
 
+/**
+ * Tests tables compiled to Exposed code in [result].
+ */
 class CompilationResultChecker(private val result: KotlinCompilation.Result) {
     inner class TableChecker(tablePropertyName: String, tablePackageName: String = "") {
         private val packagePrefix = formPackageName(tablePackageName)
         private val tableObjectClass = result.classLoader.loadClass("$packagePrefix$tablePropertyName").kotlin
         private val tableObjectInstance = tableObjectClass.objectInstance!!
 
+        /**
+         * Checks that [tableObjectClass] has a column with [columnPropertyName] of type [columnType] and its constraints.
+         */
         fun checkColumnProperty(
                 columnPropertyName: String,
                 columnName: String,
@@ -90,9 +96,13 @@ class CompilationResultChecker(private val result: KotlinCompilation.Result) {
             }
         }
 
+        /**
+         * Checks [tableName] table definition for its superclass [tableClass],
+         * attributes such as [primaryKeyColumns], and checks table columns using [checkColumnsBlock].
+         */
         fun checkTableObject(
                 tableName: String,
-                checkPropertiesBlock: () -> Unit,
+                checkColumnsBlock: () -> Unit,
                 tableClass: KClass<*> = Table::class,
                 primaryKeyColumns: List<String> = emptyList(),
                 indexes: List<IndexWrapper> = emptyList()
@@ -103,7 +113,7 @@ class CompilationResultChecker(private val result: KotlinCompilation.Result) {
             assertThat((tableObjectInstance as Table).tableName).isEqualTo(tableName)
 
             // check columns
-            checkPropertiesBlock()
+            checkColumnsBlock()
 
             // check primary key
             if (primaryKeyColumns.isNotEmpty()) {
@@ -143,6 +153,9 @@ class CompilationResultChecker(private val result: KotlinCompilation.Result) {
     )
 }
 
+/**
+ * Test Exposed code generation by compiling file specs.
+ */
 open class ExposedCodeGeneratorCompilationTest : DatabaseTestsBase() {
     protected fun compileExposedFile(vararg fileSpecs: FileSpec): KotlinCompilation.Result {
         val kotlinSources = mutableListOf<SourceFile>()
@@ -160,7 +173,17 @@ open class ExposedCodeGeneratorCompilationTest : DatabaseTestsBase() {
     }
 }
 
+/**
+ * Tests Exposed code generation by creating tables using Exposed, reading back their metadata,
+ * generating Exposed tables based on that metadata, compiling these tables and checking with [CompilationResultChecker].
+ */
 open class ExposedCodeGeneratorFromTablesTest : ExposedCodeGeneratorCompilationTest() {
+    /**
+     * Creates [tables] using Exposed, reads their metadata, generates Exposed tables from it,
+     * compiles those tables and checks them with [checkTablesBlocks].
+     * Run on all DB dialects from [TestDB.enabledInTests] except [excludedDbList].
+     * [configFileName] provides a config file for code generation.
+     */
     fun testByCompilation(
             tables: List<Table>,
             vararg checkTablesBlocks: CompilationResultChecker.() -> Unit,
@@ -176,6 +199,9 @@ open class ExposedCodeGeneratorFromTablesTest : ExposedCodeGeneratorCompilationT
         })
     }
 
+    /**
+     * Checks a singular Exposed [table] code generation.
+     */
     fun testTableByCompilation(
             table: Table,
             checkColumnsBlock: CompilationResultChecker.TableChecker.() -> Unit,
@@ -191,9 +217,12 @@ open class ExposedCodeGeneratorFromTablesTest : ExposedCodeGeneratorCompilationT
             }
         }, excludedDbList = excludedDbList, configFileName = configFileName)
     }
-
 }
 
+/**
+ * Tests Exposed code generation by running SQL scripts using Exposed, reading table metadata,
+ * generating Exposed tables from it, compiling tables and checking these tables with [CompilationResultChecker].
+ */
 open class ExposedCodeGeneratorFromScriptTest : ExposedCodeGeneratorCompilationTest() {
     private fun getSQLScriptCommands(script: String): List<String> {
         val splitResults = script.split(Regex("((?<=INSERT)|(?=INSERT))|((?<=CREATE)|(?=CREATE))|((?<=DROP)|(?=DROP))|((?<=--)|(?=--))")).filterNot { it.isBlank() }
@@ -204,6 +233,12 @@ open class ExposedCodeGeneratorFromScriptTest : ExposedCodeGeneratorCompilationT
         return commands
     }
 
+    /**
+     * Uses Exposed to create tables as specified in [scriptFileName] from [scriptFilePath],
+     * reads their metadata, generates Exposed tables from it,
+     * compiles those tables and checks them with [checkTablesBlock].
+     * Run on all DB dialects from [TestDB.enabledInTests] except [excludedDbList].
+     */
     fun testByCompilation(
             scriptFileName: String,
             scriptFilePath: Path,
@@ -230,6 +265,10 @@ open class ExposedCodeGeneratorFromScriptTest : ExposedCodeGeneratorCompilationT
 }
 
 // used for testing specific DB dialects on resource files for those specific DBs
+/**
+ * Test Exposed code generation for a specific database created from file [dbFileName] in [dbDirectoryName] in resources
+ * for databases listed in [db] using compilation.
+ */
 open class ExposedCodeGeneratorDBTest(
         private val dbFileName: String,
         private val dbDirectoryName: String,

@@ -15,6 +15,9 @@ import org.jetbrains.exposed.sql.Table as ExposedTable
 
 
 // TODO support schemas
+/**
+ * Generates files containing Exposed code for given [tables] using config file [configFileName] for a given DB [dialect].
+ */
 class ExposedCodeGenerator(
         private val tables: List<Table>,
         private val configFileName: String? = null,
@@ -43,11 +46,14 @@ class ExposedCodeGenerator(
         return builder.build()
     }
 
-    fun generateExposedTables(databaseName: String): List<FileSpec> {
+    /**
+     * Generates file specs for [tables] using [configFileName] as a configuration file and minding [dialect] DB dialect.
+     */
+    fun generateExposedTables(): List<FileSpec> {
         val config = if (configFileName != null) {
             ConfigLoader().loadConfigOrThrow(files = listOf(File(configFileName)))
         } else {
-            ExposedCodeGeneratorConfiguration(generatedFileName = "$databaseName.kt")
+            ExposedCodeGeneratorConfiguration()
         }
 
         if (config.columnMappings.isNotEmpty()) {
@@ -58,7 +64,7 @@ class ExposedCodeGenerator(
             val fileSpec = FileSpec.builder(
                     config.packageName,
                     if (config.generatedFileName.isNullOrBlank()) {
-                        "${databaseName.toCamelCase(capitalizeFirst = true)}.kt"
+                        defaultFilename
                     } else {
                         config.generatedFileName
                     }
@@ -79,6 +85,7 @@ class ExposedCodeGenerator(
 
     companion object {
         val exposedPackage: Package = ExposedTable::class.java.`package`
+        private const val defaultFilename = "GeneratedTables.kt"
     }
 }
 

@@ -8,6 +8,9 @@ import schemacrawler.tools.databaseconnector.DatabaseConnectionSource
 import schemacrawler.tools.databaseconnector.SingleUseUserCredentials
 import schemacrawler.utility.SchemaCrawlerUtility
 
+/**
+ * Connects to a database and retrieves its tables.
+ */
 class MetadataGetter {
     private val dataSource: DatabaseConnectionSource
 
@@ -47,6 +50,9 @@ class MetadataGetter {
         }
     }
 
+    /**
+     * Returns tables from the database connected via [dataSource].
+     */
     fun getTables(): List<Table> {
         val optionsBuilder = SchemaCrawlerOptionsBuilder.builder()
                 .withLoadOptions(LoadOptionsBuilder.builder()

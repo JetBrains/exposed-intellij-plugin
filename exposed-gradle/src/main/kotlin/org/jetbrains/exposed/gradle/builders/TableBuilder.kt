@@ -21,6 +21,9 @@ data class TableBuilderData(
         val configuration: ExposedCodeGeneratorConfiguration = ExposedCodeGeneratorConfiguration()
 )
 
+/**
+ * Builds a [TypeSpec] used for code generation for a table using [data].
+ */
 class TableBuilder(
         table: Table,
         private val data: TableBuilderData
@@ -41,6 +44,9 @@ class TableBuilder(
         }
     }
 
+    /**
+     * Generates a declaration including object name and superclass for table from [tableInfo].
+     */
     fun generateExposedTableDeclaration() {
         if (tableInfo.idColumn != null) {
             generateExposedIdTableDeclaration()
@@ -50,6 +56,9 @@ class TableBuilder(
         }
     }
 
+    /**
+     * Generates initialized column declarations for table from [tableInfo].
+     */
     fun generateExposedTableColumns() {
         val idColumn = tableInfo.idColumn
         val columns = tableInfo.table.columns
@@ -83,6 +92,9 @@ class TableBuilder(
         }
     }
 
+    /**
+     * Generates a primary key for table from [tableInfo]
+     */
     fun generateExposedTablePrimaryKey() {
         if (tableInfo.primaryKeyColumns.isEmpty() || tableInfo.superclass in listOf(IntIdTable::class, LongIdTable::class, UUIDTable::class)) {
             return
@@ -99,6 +111,9 @@ class TableBuilder(
         builder.addProperty(primaryKey)
     }
 
+    /**
+     * Generates multicolumn indexes declared in an initializer block for table from [tableInfo].
+     */
     fun generateExposedTableMulticolumnIndexes() {
         val indexes = tableInfo.table.indexes.filter { it.columns.size > 1 || it.indexType !in listOf(IndexType.other, IndexType.unknown)}
         if (indexes.isEmpty()) {

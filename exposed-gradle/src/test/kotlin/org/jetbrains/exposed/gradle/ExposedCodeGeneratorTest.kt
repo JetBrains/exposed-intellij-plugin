@@ -280,7 +280,7 @@ class ExposedCodeGeneratorTest : ExposedCodeGeneratorFromTablesTest() {
             val tables = metadataGetter.getTables()
 
             val exposedCodeGenerator = ExposedCodeGenerator(tables)
-            val fileSpec = exposedCodeGenerator.generateExposedTables(db.name)[0]
+            val fileSpec = exposedCodeGenerator.generateExposedTables()[0]
 
             val result = compileExposedFile(fileSpec)
             assertThat(result.exitCode).isEqualTo(KotlinCompilation.ExitCode.OK)
