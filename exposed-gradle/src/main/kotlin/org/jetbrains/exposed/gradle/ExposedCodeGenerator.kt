@@ -5,6 +5,7 @@ import com.squareup.kotlinpoet.FileSpec
 import com.squareup.kotlinpoet.PropertySpec
 import com.squareup.kotlinpoet.TypeSpec
 import org.jetbrains.exposed.gradle.builders.TableBuilder
+import org.jetbrains.exposed.gradle.builders.TableBuilderData
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import schemacrawler.schema.Column
@@ -26,8 +27,13 @@ class ExposedCodeGenerator(
 
 
     // returns a TypeSpec used for Exposed Kotlin code generation
-    private fun generateExposedTable(table: Table): TypeSpec {
-        val builder = TableBuilder(table, columnToPropertySpec, columnToTableSpec, columnNameToInitializerBlock, dialect)
+    private fun generateExposedTable(
+            table: Table,
+            configuration: ExposedCodeGeneratorConfiguration = ExposedCodeGeneratorConfiguration()
+    ): TypeSpec {
+        val builder = TableBuilder(table,
+                TableBuilderData(columnToPropertySpec, columnToTableSpec, columnNameToInitializerBlock, dialect, configuration)
+        )
 
         builder.generateExposedTableDeclaration()
         builder.generateExposedTableColumns()
@@ -57,14 +63,13 @@ class ExposedCodeGenerator(
                         config.generatedFileName
                     }
             )
-            tables.forEach { fileSpec.addType(generateExposedTable(it)) }
-
+            tables.forEach { fileSpec.addType(generateExposedTable(it, config)) }
             listOf(fileSpec.build())
         } else {
             val fileSpecs = mutableListOf<FileSpec>()
             for (table in tables) {
                 val fileSpec = FileSpec.builder(config.packageName, "${table.fullName.toCamelCase(capitalizeFirst = true)}.kt")
-                fileSpec.addType(generateExposedTable(table))
+                fileSpec.addType(generateExposedTable(table, config))
                 fileSpecs.add(fileSpec.build())
             }
 

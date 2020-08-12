@@ -1,0 +1,2 @@
+generateSingleFile: true
+collate: "pg_catalog.\"default\""

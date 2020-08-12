@@ -13,12 +13,17 @@ import schemacrawler.schema.Column
 import schemacrawler.schema.IndexType
 import schemacrawler.schema.Table
 
+data class TableBuilderData(
+        val columnToPropertySpec: MutableMap<Column, PropertySpec>,
+        val columnToTableSpec: MutableMap<Column, TypeSpec>,
+        val columnNameToInitializerBlock: Map<String, String>,
+        val dialect: DBDialect? = null,
+        val configuration: ExposedCodeGeneratorConfiguration = ExposedCodeGeneratorConfiguration()
+)
+
 class TableBuilder(
         table: Table,
-        private val columnToPropertySpec: MutableMap<Column, PropertySpec>,
-        private val columnToTableSpec: MutableMap<Column, TypeSpec>,
-        private val columnNameToInitializerBlock: Map<String, String>,
-        private val dialect: DBDialect? = null
+        private val data: TableBuilderData
 ) {
     private val tableInfo = TableInfo(table)
     private val builder = TypeSpec.objectBuilder(getObjectNameForTable(table))
@@ -50,28 +55,28 @@ class TableBuilder(
         val columns = tableInfo.table.columns
         for (column in columns) {
             try {
-                val columnMapping = columnNameToInitializerBlock[getColumnConfigName(column)]
+                val columnMapping = data.columnNameToInitializerBlock[getColumnConfigName(column)]
                 val columnBuilder = if (columnMapping != null) {
                     if (column == idColumn) {
-                        MappedIdColumnBuilder(column, columnMapping, dialect)
+                        MappedIdColumnBuilder(column, columnMapping, data)
                     } else {
-                        MappedColumnBuilder(column, columnMapping, dialect)
+                        MappedColumnBuilder(column, columnMapping, data)
                     }
                 } else {
                     if (column == idColumn) {
-                        IdColumnBuilder(column, dialect)
+                        IdColumnBuilder(column, data)
                     } else {
-                        ColumnBuilder(column, dialect)
+                        ColumnBuilder(column, data)
                     }
                 }
-                columnBuilder.generateExposedColumnInitializer(columnToPropertySpec, columnToTableSpec)
+                columnBuilder.generateExposedColumnInitializer(data.columnToPropertySpec, data.columnToTableSpec)
                 val columnPropertySpec = columnBuilder.build()
 
                 if (column != idColumn || tableInfo.superclass !in listOf(IntIdTable::class, LongIdTable::class, UUIDTable::class)) {
                     builder.addProperty(columnPropertySpec)
                 }
 
-                columnToPropertySpec[column] = columnPropertySpec
+                data.columnToPropertySpec[column] = columnPropertySpec
             } catch (e: UnsupportedTypeException) {
                 logger.error("Unsupported type", e)
             }
@@ -84,7 +89,7 @@ class TableBuilder(
         }
 
         val primaryKeys = tableInfo.primaryKeyColumns.map {
-            columnToPropertySpec[it]?.name
+            data.columnToPropertySpec[it]?.name
                     ?: throw ReferencedColumnNotFoundException("Primary key column ${it.fullName} not found.")
         }
         val primaryKey =
@@ -107,7 +112,7 @@ class TableBuilder(
                 }
                 val name = getIndexName(index)
                 val columns = index.columns.map {
-                    columnToPropertySpec[it]?.name
+                    data.columnToPropertySpec[it]?.name
                             ?: throw ReferencedColumnNotFoundException("Column ${it.fullName} definition not generated, can't create index.")
                 }
                 val indexType = indexTypeName[index.indexType]
@@ -129,7 +134,7 @@ class TableBuilder(
     fun build(): TypeSpec {
         val exposedTable = builder.build()
         for (column in tableInfo.table.columns) {
-            columnToTableSpec[column] = exposedTable
+            data.columnToTableSpec[column] = exposedTable
         }
         return exposedTable
     }

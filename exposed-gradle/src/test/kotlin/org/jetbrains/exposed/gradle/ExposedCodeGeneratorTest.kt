@@ -320,4 +320,38 @@ class ExposedCodeGeneratorTest : ExposedCodeGeneratorFromTablesTest() {
             checkColumnProperty("c4", "c4", IntegerColumnType())
         }, excludedDbList = TestDB.enabledInTests() - listOf(TestDB.POSTGRESQL, TestDB.POSTGRESQLNG))
     }
+
+    @Test
+    fun configStringCollationSQLite() {
+        testByCompilation(
+                listOf(CollationTableSQLite),
+                {
+                    with(TableChecker("CollationTableSqlite")) {
+                        checkTableObject("collation_table_sqlite", {
+                            checkColumnProperty("c1", "c1", TextColumnType("NOCASE"))
+                            checkColumnProperty("c2", "c2", CharColumnType(30, "NOCASE"))
+                            checkColumnProperty("c3", "c3", VarCharColumnType(30, "NOCASE"))
+                        })
+                    }
+                },
+                configFileName = Paths.get(resourcesConfigFilesPath.toString(), "collationConfigSQLite.yml").toString(),
+                excludedDbList = TestDB.enabledInTests() - listOf(TestDB.SQLITE))
+    }
+
+    @Test
+    fun configStringCollationPostgreSQL() {
+        testByCompilation(
+                listOf(CollationTablePostgreSQL),
+                {
+                    with(TableChecker("CollationTablePostgresql")) {
+                        checkTableObject("collation_table_postgresql", {
+                            checkColumnProperty("c1", "c1", TextColumnType("pg_catalog.\"default\""))
+                            checkColumnProperty("c2", "c2", CharColumnType(30, "pg_catalog.\"default\""))
+                            checkColumnProperty("c3", "c3", VarCharColumnType(30, "pg_catalog.\"default\""))
+                        })
+                    }
+                },
+                configFileName = Paths.get(resourcesConfigFilesPath.toString(), "collationConfigPostgreSQL.yml").toString(),
+                excludedDbList = TestDB.enabledInTests() - listOf(TestDB.POSTGRESQL))
+    }
 }
