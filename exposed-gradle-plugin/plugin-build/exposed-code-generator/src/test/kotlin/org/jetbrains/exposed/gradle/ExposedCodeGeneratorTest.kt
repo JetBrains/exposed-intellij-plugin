@@ -104,7 +104,7 @@ class ExposedCodeGeneratorTest : ExposedCodeGeneratorFromTablesTest() {
         }, indexes = listOf(CompilationResultChecker.IndexWrapper(isUnique = true, columnNames = setOf("c1"))))
     }
 
-    /*@Test
+    @Test
     fun foreignKey() {
         testByCompilation(listOf(Sample, SampleRef), {
             with(TableChecker("Sample")) {
@@ -127,7 +127,7 @@ class ExposedCodeGeneratorTest : ExposedCodeGeneratorFromTablesTest() {
                 })
             }
         })
-    }*/
+    }
 
     @Test
     fun autoIncrement() {

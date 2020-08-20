@@ -84,7 +84,8 @@ class CompilationResultChecker(private val result: KotlinCompilation.Result) {
                 val foreignKeyTargetTableObject = if (foreignKeyTargetTable == null || foreignKeyTargetTable == tableObjectInstance::class.simpleName) {
                     tableObjectInstance
                 } else {
-//                    result.classLoader.loadClass("${formPackageName(tableObjectInstance::class.java.packageName)}$foreignKeyTargetTable").kotlin.objectInstance
+                    val packageName = tableObjectInstance::class.java.`package`?.name ?: ""
+                    result.classLoader.loadClass("${formPackageName(packageName)}$foreignKeyTargetTable").kotlin.objectInstance
                 }!!
                 val target = foreignKeyTargetTableObject::class.memberProperties
                         .find { it.name == foreignKey.targetColumn.toLowerCase() }!!.getter.call(foreignKeyTargetTableObject)
@@ -160,7 +161,7 @@ open class ExposedCodeGeneratorCompilationTest : DatabaseTestsBase() {
         for (fileSpec in fileSpecs) {
             val sb = StringBuilder()
             fileSpec.writeTo(sb)
-            kotlinSources.add(SourceFile.kotlin(fileSpec.name, sb.toString()))
+            kotlinSources.add(SourceFile.kotlin("${fileSpec.name}.kt", sb.toString()))
         }
 
         return KotlinCompilation().apply {
