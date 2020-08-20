@@ -1,6 +1,7 @@
 package com.jetbrains.exposed.gradle.plugin
 
 import org.gradle.api.Project
+import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.provider.MapProperty
 import org.gradle.api.provider.Property
@@ -31,7 +32,7 @@ abstract class ExposedGradleExtension @Inject constructor(project: Project) {
     val collate: Property<String> = objects.property(String::class.java)
     val columnMappings: MapProperty<String, String> = objects.mapProperty(String::class.java, String::class.java)
 
-    val outputDirectory: RegularFileProperty = objects.fileProperty().convention(
-            project.layout.buildDirectory.file(DEFAULT_OUTPUT_DIRECTORY)
+    val outputDirectory: DirectoryProperty = objects.directoryProperty().convention(
+            project.layout.buildDirectory.dir(DEFAULT_OUTPUT_DIRECTORY)
     )
 }

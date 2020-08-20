@@ -1,14 +1,12 @@
 package com.jetbrains.exposed.gradle.plugin
 
 import org.gradle.api.DefaultTask
+import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.plugins.BasePlugin
 import org.gradle.api.provider.MapProperty
 import org.gradle.api.provider.Property
-import org.gradle.api.tasks.Input
-import org.gradle.api.tasks.Optional
-import org.gradle.api.tasks.OutputFile
-import org.gradle.api.tasks.TaskAction
+import org.gradle.api.tasks.*
 import org.gradle.api.tasks.options.Option
 import org.jetbrains.exposed.gradle.ExposedCodeGenerator
 import org.jetbrains.exposed.gradle.ExposedCodeGeneratorConfiguration
@@ -98,8 +96,8 @@ abstract class ExposedGenerateCodeTask : DefaultTask() {
     abstract val columnMappings: MapProperty<String, String>
 
 
-    @get:OutputFile
-    abstract val outputDirectory: RegularFileProperty
+    @get:OutputDirectory
+    abstract val outputDirectory: DirectoryProperty
 
     @TaskAction
     fun generateExposedCode() {
@@ -133,6 +131,4 @@ abstract class ExposedGenerateCodeTask : DefaultTask() {
     }
 
     private fun List<schemacrawler.schema.Table>.filterUtilTables() = this.filterNot { it.fullName.startsWith("sys.") }
-
-
 }
