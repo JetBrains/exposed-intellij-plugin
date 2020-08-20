@@ -1,7 +1,7 @@
 plugins {
     java
     kotlin("jvm") apply true
-//    kotlin("jvm") version "1.3.72"
+//    kotlin("jvm") version "1.4.0"
 }
 
 repositories {
@@ -12,6 +12,7 @@ repositories {
 
 dependencies {
     implementation(kotlin("stdlib-jdk8"))
+    implementation("org.jetbrains.kotlin", "kotlin-reflect", "1.4.0")
 
     // exposed
     implementation("org.jetbrains.exposed", "exposed-core", "0.26.1")
@@ -41,7 +42,7 @@ dependencies {
 
     // logging
     implementation("org.slf4j:slf4j-api:1.7.30")
-    implementation( "ch.qos.logback", "logback-classic", "1.2.3")
+//    implementation( "ch.qos.logback", "logback-classic", "1.2.3")
 
     // database drivers
     implementation("com.h2database", "h2","1.4.199")
