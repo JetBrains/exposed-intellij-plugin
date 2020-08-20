@@ -275,7 +275,7 @@ class ExposedCodeGeneratorTest : ExposedCodeGeneratorFromTablesTest() {
     // check db-host-port connection manually
     @Test
     fun connection() {
-        withTables(tables = *arrayOf(IntegerTypes), statement = {
+        withTables(tables = arrayOf(IntegerTypes), statement = {
             val metadataGetter = MetadataGetter("postgresql", "template1", "postgres", "", "localhost", "12346")
             val tables = metadataGetter.getTables()
 

@@ -132,7 +132,9 @@ class CompilationResultChecker(private val result: KotlinCompilation.Result) {
                     tableObjectInstance.indices.find { it.indexName == index.name }
                 } else {
                     // when the name is irrelevant
-                    tableObjectInstance.indices.find { it.unique == index.isUnique && it.columns.map { it.name }.toSet() == index.columnNames }
+                    tableObjectInstance.indices.find {
+                        idx -> idx.unique == index.isUnique && idx.columns.map { it.name }.toSet() == index.columnNames
+                    }
                 }
                 assertThat(tableIndex).isNotNull
                 assertThat(tableIndex!!.unique).isEqualTo(index.isUnique)
@@ -190,7 +192,7 @@ open class ExposedCodeGeneratorFromTablesTest : ExposedCodeGeneratorCompilationT
             tableName: String? = null,
             configFileName: String? = null
     ) {
-        withTables(excludeSettings = excludedDbList, tables = *tables.toTypedArray(), statement = {
+        withTables(excludeSettings = excludedDbList, tables = tables.toTypedArray(), statement = {
             val fileSpecs = getDatabaseExposedFileSpec(it, tableName, configFileName)
             val result = compileExposedFile(*fileSpecs.toTypedArray())
             assertThat(result.exitCode).isEqualTo(KotlinCompilation.ExitCode.OK)
