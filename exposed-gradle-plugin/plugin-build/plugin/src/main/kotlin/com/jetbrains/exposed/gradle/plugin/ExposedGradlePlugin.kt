@@ -16,20 +16,20 @@ abstract class ExposedGradlePlugin : Plugin<Project> {
 
         // Add a task that uses configuration from the extension object
         project.tasks.register(TASK_NAME, ExposedGenerateCodeTask::class.java) {
-            it.databaseDriver.set(getPropertyValue<String>(project, extension, "databaseDriver"))
-            it.databaseName.set(getPropertyValue<String>(project, extension, "databaseName"))
-            it.user.set(getPropertyValue<String>(project, extension, "user"))
-            it.password.set(getPropertyValue<String>(project, extension, "password"))
-            it.host.set(getPropertyValue<String>(project, extension, "host"))
-            it.port.set(getPropertyValue<String>(project, extension, "port"))
-            it.ipv6Host.set(getPropertyValue<String>(project, extension, "ipv6Host"))
+            it.databaseDriver.set(getStringProperty(project, extension, "databaseDriver"))
+            it.databaseName.set(getStringProperty(project, extension, "databaseName"))
+            it.user.set(getStringProperty(project, extension, "user"))
+            it.password.set(getStringProperty(project, extension, "password"))
+            it.host.set(getStringProperty(project, extension, "host"))
+            it.port.set(getStringProperty(project, extension, "port"))
+            it.ipv6Host.set(getStringProperty(project, extension, "ipv6Host"))
 
-            it.connectionURL.set(getPropertyValue<String>(project, extension, "connectionURL"))
+            it.connectionURL.set(getStringProperty(project, extension, "connectionURL"))
 
-            it.packageName.set(getPropertyValue<String>(project, extension, "packageName"))
-            it.generateSingleFile.set(getPropertyValue<Boolean>(project, extension, "generateSingleFile"))
-            it.generatedFileName.set(getPropertyValue<String>(project, extension, "generatedFileName"))
-            it.collate.set(getPropertyValue<String>(project, extension, "collate"))
+            it.packageName.set(getStringProperty(project, extension, "packageName"))
+            it.generateSingleFile.set(getStringProperty(project, extension, "generateSingleFile")?.toBoolean())
+            it.generatedFileName.set(getStringProperty(project, extension, "generatedFileName"))
+            it.collate.set(getStringProperty(project, extension, "collate"))
             // TODO
             it.columnMappings.set(extension.columnMappings)
 
@@ -39,17 +39,22 @@ abstract class ExposedGradlePlugin : Plugin<Project> {
 
     // IMPORTANT: the property should have the same name everywhere bc of reflection usage
     @Suppress("UNCHECKED_CAST")
-    private fun <T> getPropertyValue(project: Project, extension: ExposedGradleExtension, propName: String): T? = when {
-        project.hasProperty(propName) -> project.property(propName) as T
+    private fun getProperty(project: Project, extension: ExposedGradleExtension, propName: String): Any? = when {
+        System.getProperty(propName) != null -> System.getProperty(propName)
+        System.getenv(propName) != null -> System.getenv(propName)
+        project.hasProperty(propName) -> project.property(propName)
         extension.propertiesFilename.orNull != null -> {
             val props = Properties()
             props.load(FileReader(extension.propertiesFilename.get()))
-            props[propName] as T?
+            props[propName]
         }
         else -> {
             val prop = extension::class.declaredMemberProperties.find { it.name == propName }
-            val value = prop!!.getter.call(extension) as Property<T>
+            val value = prop!!.getter.call(extension) as Property<Any>
             value.orNull
         }
     }
+
+    private fun getStringProperty(project: Project, extension: ExposedGradleExtension, propName: String) =
+            getProperty(project, extension, propName) as String?
 }
