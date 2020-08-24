@@ -5,7 +5,7 @@ plugins {
 }
 
 dependencies {
-    implementation(project(":exposed-code-generator"))
+    implementation("com.jetbrains.exposed.gradle:exposed-code-generator:1.0")
     implementation(kotlin("stdlib-jdk8"))
     implementation(gradleApi())
 

@@ -10,4 +10,4 @@ pluginManagement {
 rootProject.name = ("com.jetbrains.exposed.gradle.plugin")
 
 include(":plugin")
-include(":exposed-code-generator")
+includeBuild("exposed-code-generator")

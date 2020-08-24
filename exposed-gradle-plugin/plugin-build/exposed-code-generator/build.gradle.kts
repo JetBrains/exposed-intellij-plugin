@@ -1,8 +1,11 @@
 plugins {
     java
-    kotlin("jvm") apply true
-//    kotlin("jvm") version "1.4.0"
+//    kotlin("jvm") apply true
+    kotlin("jvm") version "1.4.0"
 }
+
+group = "com.jetbrains.exposed.gradle"
+version = "1.0"
 
 repositories {
     mavenCentral()

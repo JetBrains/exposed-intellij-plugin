@@ -7,5 +7,6 @@ plugins {
 // .properties file [propertiesFilename] takes precedence over other configuration properties
 // don't use [connectionURL] and other properties ([databaseDriver], etc) together
 exposedCodeGeneratorConfig {
+    connectionURL.set("jdbc:postgresql:pltest?user=postgres&password=testing")
 
 }
