@@ -70,7 +70,7 @@ enum class TestDB(val connection: () -> String, val driver: String, val user: St
 
     companion object {
         fun enabledInTests(): List<TestDB> {
-            val embeddedTests = (TestDB.values().toList() - ORACLE - SQLSERVER - MARIADB).joinToString()
+            val embeddedTests = (TestDB.values().toList() - ORACLE - SQLSERVER - MARIADB - MYSQL).joinToString()
             val concreteDialects = System.getProperty("exposed.test.dialects", embeddedTests).let {
                 if (it == "") emptyList()
                 else it.split(',').map { it.trim().toUpperCase() }

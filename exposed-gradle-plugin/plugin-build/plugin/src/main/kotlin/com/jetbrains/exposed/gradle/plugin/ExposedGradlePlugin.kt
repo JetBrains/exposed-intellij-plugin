@@ -27,7 +27,7 @@ abstract class ExposedGradlePlugin : Plugin<Project> {
             it.connectionURL.set(getStringProperty(project, extension, "connectionURL"))
 
             it.packageName.set(getStringProperty(project, extension, "packageName"))
-            it.generateSingleFile.set(getStringProperty(project, extension, "generateSingleFile")?.toBoolean())
+//            it.generateSingleFile.set(getStringProperty(project, extension, "generateSingleFile")?.toBoolean())
             it.generatedFileName.set(getStringProperty(project, extension, "generatedFileName"))
             it.collate.set(getStringProperty(project, extension, "collate"))
             // TODO
@@ -45,15 +45,15 @@ abstract class ExposedGradlePlugin : Plugin<Project> {
         System.getProperty(propName) != null -> System.getProperty(propName)
         System.getenv(propName) != null -> System.getenv(propName)
         project.hasProperty(propName) -> project.property(propName)
-        extension.propertiesFilename.orNull != null -> {
+        extension.propertiesFilename != null -> {
             val props = Properties()
-            props.load(FileReader(extension.propertiesFilename.get()))
+            props.load(FileReader(extension.propertiesFilename))
             props[propName]
         }
         else -> {
             val prop = extension::class.declaredMemberProperties.find { it.name == propName }
-            val value = prop!!.getter.call(extension) as Property<Any>
-            value.orNull
+            val value = prop!!.getter.call(extension)
+            value
         }
     }
 

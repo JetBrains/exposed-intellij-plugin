@@ -41,10 +41,3 @@ tasks.getByName<org.jetbrains.intellij.tasks.PatchPluginXmlTask>("patchPluginXml
       Add change notes here.<br>
       <em>most HTML tags may be used</em>""")
 }
-
-exposedCodeGeneratorConfig {
-    databaseDriver.set("postgresql")
-    databaseName.set("pltest")
-    user.set("postgres")
-    password.set("testing")
-}

@@ -129,7 +129,8 @@ abstract class ExposedGenerateCodeTask : DefaultTask() {
         } else {
             val config = ExposedCodeGeneratorConfiguration(
                     packageName.getOrElse(""),
-                    generateSingleFile.getOrElse(true),
+                    // TODO
+                    true,
                     generatedFileName.orNull,
                     collate.orNull,
                     columnMappings.getOrElse(emptyMap())

@@ -13,27 +13,27 @@ abstract class ExposedGradleExtension @Inject constructor(project: Project) {
 
     private val objects = project.objects
 
-    val propertiesFilename: Property<String> = objects.property(String::class.java)
+    var propertiesFilename: String? = null
 
-    val databaseDriver: Property<String> = objects.property(String::class.java)
-    val databaseName: Property<String> = objects.property(String::class.java)
-    val user: Property<String> = objects.property(String::class.java)
-    val password: Property<String> = objects.property(String::class.java)
-    val host: Property<String> = objects.property(String::class.java)
-    val port: Property<String> = objects.property(String::class.java)
-    val ipv6Host: Property<String> = objects.property(String::class.java)
+    var databaseDriver: String? = null
+    var databaseName: String? = null
+    var user: String? = null
+    var password: String? = null
+    var host: String? = null
+    var port: String? = null
+    var ipv6Host: String? = null
 
-    val connectionURL: Property<String> = objects.property(String::class.java)
+    var connectionURL: String? = null
 
-    val packageName: Property<String> = objects.property(String::class.java)
-    val generateSingleFile: Property<Boolean> = objects.property(Boolean::class.java)
-    val generatedFileName: Property<String> = objects.property(String::class.java)
-    val collate: Property<String> = objects.property(String::class.java)
-    val columnMappings: MapProperty<String, String> = objects.mapProperty(String::class.java, String::class.java)
+    var packageName: String? = null
+//    var generateSingleFile: Boolean = true
+    var generatedFileName: String? = null
+    var collate: String? = null
+    var columnMappings: Map<String, String> = mutableMapOf()
 
-    val configFilename: Property<String> = objects.property(String::class.java)
+    var configFilename: String? = null
 
-    val outputDirectory: DirectoryProperty = objects.directoryProperty().convention(
+    var outputDirectory: DirectoryProperty = objects.directoryProperty().convention(
             project.layout.buildDirectory.dir(DEFAULT_OUTPUT_DIRECTORY)
     )
 }
