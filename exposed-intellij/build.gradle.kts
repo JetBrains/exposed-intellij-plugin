@@ -1,15 +1,23 @@
 plugins {
     id("org.jetbrains.intellij") version "0.4.21"
     java
-    kotlin("jvm") version "1.3.72"
+    kotlin("jvm") version "1.4.0"
+    id("com.jetbrains.exposed.gradle.plugin")
 }
 
 repositories {
     mavenCentral()
+    maven { url = uri("https://repo.gradle.org/gradle/libs-releases") }
 }
 
 dependencies {
     implementation(kotlin("stdlib-jdk8"))
+
+    implementation("org.gradle:gradle-tooling-api:6.6")
+    runtimeOnly("org.slf4j:slf4j-simple:1.7.10")
+    implementation(gradleApi())
+
+
     testImplementation("junit", "junit", "4.12")
 }
 
@@ -32,4 +40,11 @@ tasks.getByName<org.jetbrains.intellij.tasks.PatchPluginXmlTask>("patchPluginXml
     changeNotes("""
       Add change notes here.<br>
       <em>most HTML tags may be used</em>""")
+}
+
+exposedCodeGeneratorConfig {
+    databaseDriver.set("postgresql")
+    databaseName.set("pltest")
+    user.set("postgres")
+    password.set("testing")
 }

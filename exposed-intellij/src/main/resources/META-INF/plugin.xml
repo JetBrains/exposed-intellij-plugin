@@ -1,11 +1,10 @@
 <idea-plugin>
-    <id>org.jetbrains.exposed-intellij.exposed-intellij</id>
-    <name>Plugin display name here</name>
-    <vendor email="support@yourcompany.com" url="http://www.yourcompany.com">YourCompany</vendor>
+    <id>com.jetbrains.exposed.exposed-intellij</id>
+    <name>Exposed Code Generator</name>
+    <vendor email="darya.sharkova@jetbrains.com" url="https://www.jetbrains.com/">JetBrains</vendor>
 
     <description><![CDATA[
-    Enter short description for your plugin here.<br>
-    <em>most HTML tags may be used</em>
+    Launches a Gradle plugin that generates Exposed tables for a provided database connection.
     ]]></description>
 
     <!-- please see https://www.jetbrains.org/intellij/sdk/docs/basics/getting_started/plugin_compatibility.html
@@ -17,6 +16,11 @@
     </extensions>
 
     <actions>
-        <!-- Add your actions here -->
+        <action id="com.jetbrains.exposed.intellij.actions.GenerateExposedCodeAction"
+                class="com.jetbrains.exposed.intellij.actions.GenerateExposedCodeAction" text="Generate Exposed code"
+                description=
+                        "Launches a Gradle plugin that accepts database connection parameters and generates Exposed code .kt files for each table in the database.">
+            <add-to-group group-id="ToolsMenu" anchor="last"/>
+        </action>
     </actions>
 </idea-plugin>

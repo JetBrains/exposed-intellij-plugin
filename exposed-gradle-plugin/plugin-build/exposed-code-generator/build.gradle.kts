@@ -10,7 +10,7 @@ version = "1.0"
 repositories {
     mavenCentral()
     jcenter()
-    maven { url = uri("https://jitpack.io") }
+//    maven { url = uri("https://jitpack.io") }
 }
 
 dependencies {
@@ -31,7 +31,8 @@ dependencies {
 
     // utils
     implementation("org.apache.commons", "commons-text", "1.8")
-    implementation("com.github.Erdos-Graph-Framework:Erdos:v1.0")
+    // TODO replace by anything else that can perform topsort without me having to write it from scratch
+//    implementation("com.github.Erdos-Graph-Framework:Erdos:v1.0")
     implementation("com.facebook.presto", "presto-parser", "0.239")
 
 

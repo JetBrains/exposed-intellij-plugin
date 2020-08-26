@@ -80,7 +80,8 @@ class MetadataGetter {
 
         val options = optionsBuilder.toOptions()
         val catalog = SchemaCrawlerUtility.getCatalog(dataSource.get(), options)
-        return sortTablesByDependencies(catalog.schemas.flatMap { catalog.getTables(it) })
+//        return sortTablesByDependencies(catalog.schemas.flatMap { catalog.getTables(it) })
+        return catalog.schemas.flatMap { catalog.getTables(it) }
     }
 }
 

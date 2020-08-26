@@ -31,6 +31,8 @@ abstract class ExposedGradleExtension @Inject constructor(project: Project) {
     val collate: Property<String> = objects.property(String::class.java)
     val columnMappings: MapProperty<String, String> = objects.mapProperty(String::class.java, String::class.java)
 
+    val configFilename: Property<String> = objects.property(String::class.java)
+
     val outputDirectory: DirectoryProperty = objects.directoryProperty().convention(
             project.layout.buildDirectory.dir(DEFAULT_OUTPUT_DIRECTORY)
     )

@@ -97,6 +97,11 @@ abstract class ExposedGenerateCodeTask : DefaultTask() {
     @get:Optional
     abstract val columnMappings: MapProperty<String, String>
 
+    @get:Input
+    @get:Option(option = "configFilename", description = "Config filename")
+    @get:Optional
+    abstract val configFilename: Property<String>
+
 
     @get:OutputDirectory
     abstract val outputDirectory: DirectoryProperty
@@ -119,14 +124,18 @@ abstract class ExposedGenerateCodeTask : DefaultTask() {
 
 
         val tables = metadataGetter.getTables().filterUtilTables()
-        val config = ExposedCodeGeneratorConfiguration(
-                packageName.getOrElse(""),
-                generateSingleFile.getOrElse(true),
-                generatedFileName.orNull,
-                collate.orNull,
-                columnMappings.getOrElse(emptyMap())
-        )
-        val exposedCodeGenerator = ExposedCodeGenerator(tables, config)
+        val exposedCodeGenerator = if (configFilename.orNull != null) {
+            ExposedCodeGenerator(tables, configFilename.get())
+        } else {
+            val config = ExposedCodeGeneratorConfiguration(
+                    packageName.getOrElse(""),
+                    generateSingleFile.getOrElse(true),
+                    generatedFileName.orNull,
+                    collate.orNull,
+                    columnMappings.getOrElse(emptyMap())
+            )
+            ExposedCodeGenerator(tables, config)
+        }
         val files = exposedCodeGenerator.generateExposedTables()
 
         files.forEach { it.writeTo(outputDirectory.get().asFile) }

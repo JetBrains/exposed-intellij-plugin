@@ -33,6 +33,8 @@ abstract class ExposedGradlePlugin : Plugin<Project> {
             // TODO
             it.columnMappings.set(extension.columnMappings)
 
+            it.configFilename.set(extension.configFilename)
+
             it.outputDirectory.set(extension.outputDirectory)
         }
     }
