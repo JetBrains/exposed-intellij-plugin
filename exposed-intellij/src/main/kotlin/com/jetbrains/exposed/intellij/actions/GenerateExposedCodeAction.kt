@@ -2,6 +2,10 @@ package com.jetbrains.exposed.intellij.actions
 
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
+import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.progress.ProgressIndicator
+import com.intellij.openapi.progress.ProgressManager
+import com.intellij.openapi.progress.Task
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.DialogWrapper
 import com.intellij.ui.layout.LCFlags
@@ -18,6 +22,8 @@ class GenerateExposedCodeAction : AnAction() {
         var databaseName: String = ""
         var user: String = ""
         var password: String = ""
+        var host: String = ""
+        var port: String = ""
         var configFilename: String = ""
     }
 
@@ -42,6 +48,15 @@ class GenerateExposedCodeAction : AnAction() {
                 row("Password") {
                     textField(UISettings::password)
                 }
+                row("Host") {
+                    textField(UISettings::host)
+                }
+                row("Port") {
+                    textField(UISettings::port)
+                }
+                row {
+                    horizontalStretch
+                }
                 row("Config file path") {
                     textField(UISettings::configFilename)
                 }
@@ -65,18 +80,28 @@ class GenerateExposedCodeAction : AnAction() {
                 .connect()
 
         if (ExposedCodeGeneratorConfigDialog(currentProject).showAndGet()) {
-            connection.use {
-                it.newBuild()
-                        .forTasks("generateExposedCode")
-                        .setEnvironmentVariables(mapOf(
-                                "databaseDriver" to UISettings.databaseDriver,
-                                "databaseName" to UISettings.databaseName,
-                                "user" to UISettings.user,
-                                "password" to UISettings.password,
-                                "configFilename" to UISettings.configFilename
-                        ))
-                        .setStandardOutput(System.out)
-                        .run()
+            ApplicationManager.getApplication().invokeLater {
+                ProgressManager.getInstance().run(object : Task.Backgroundable(currentProject, "Generating Exposed code", true) {
+                    override fun run(indicator: ProgressIndicator) {
+                        connection.use {
+                            it.newBuild()
+                                    .forTasks("generateExposedCode")
+                                    .setEnvironmentVariables(
+                                            mapOf(
+                                                    "databaseDriver" to UISettings.databaseDriver,
+                                                    "databaseName" to UISettings.databaseName,
+                                                    "user" to if (UISettings.user.isBlank()) "root" else UISettings.user,
+                                                    "password" to UISettings.password,
+                                                    "host" to UISettings.host,
+                                                    "port" to UISettings.port,
+                                                    "configFilename" to UISettings.configFilename
+                                            ).filterValues { value -> value.isNotBlank() }
+                                    )
+                                    .setStandardOutput(System.out)
+                                    .run()
+                        }
+                    }
+                })
             }
         }
     }
