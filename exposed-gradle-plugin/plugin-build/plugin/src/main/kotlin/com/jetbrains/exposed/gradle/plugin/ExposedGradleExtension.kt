@@ -26,7 +26,7 @@ abstract class ExposedGradleExtension @Inject constructor(project: Project) {
     var connectionURL: String? = null
 
     var packageName: String? = null
-//    var generateSingleFile: Boolean = true
+    var generateSingleFile: Boolean = true
     var generatedFileName: String? = null
     var collate: String? = null
     var columnMappings: Map<String, String> = mutableMapOf()

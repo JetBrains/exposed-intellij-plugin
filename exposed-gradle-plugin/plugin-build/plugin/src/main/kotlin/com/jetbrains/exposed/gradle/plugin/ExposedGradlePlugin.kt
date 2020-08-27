@@ -27,7 +27,7 @@ abstract class ExposedGradlePlugin : Plugin<Project> {
             it.connectionURL.set(getStringProperty(project, extension, "connectionURL"))
 
             it.packageName.set(getStringProperty(project, extension, "packageName"))
-//            it.generateSingleFile.set(getStringProperty(project, extension, "generateSingleFile")?.toBoolean())
+            it.generateSingleFile.set(getProperty(project, extension, "generateSingleFile") as Boolean)
             it.generatedFileName.set(getStringProperty(project, extension, "generatedFileName"))
             it.collate.set(getStringProperty(project, extension, "collate"))
             // TODO
