@@ -85,7 +85,7 @@ class ExposedCodeGenerator {
         } else {
             val fileSpecs = mutableListOf<FileSpec>()
             for (table in tables) {
-                val fileSpec = FileSpec.builder(configuration.packageName, table.fullName.toCamelCase(capitalizeFirst = true))
+                val fileSpec = FileSpec.builder(configuration.packageName, table.name.toCamelCase(capitalizeFirst = true))
                 fileSpec.addType(generateExposedTable(table, configuration))
                 fileSpecs.add(fileSpec.build())
             }
@@ -96,7 +96,7 @@ class ExposedCodeGenerator {
 
     companion object {
         val exposedPackage: Package = ExposedTable::class.java.`package`
-        val javatimeExposedPackageName = "org.jetbrains.exposed.sql.java-time"
+        const val javatimeExposedPackageName = "org.jetbrains.exposed.sql.java-time"
         private const val defaultFilename = "GeneratedTables"
     }
 }
