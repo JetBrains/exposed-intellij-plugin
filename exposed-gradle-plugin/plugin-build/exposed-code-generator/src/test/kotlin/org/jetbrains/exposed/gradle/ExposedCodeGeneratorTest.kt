@@ -77,7 +77,6 @@ class ExposedCodeGeneratorTest : ExposedCodeGeneratorFromTablesTest() {
 
     @Test
     // SQLite stores LocalDateTime as Numeric, making it indistinguishable from actual numeric/decimal columns
-    // TODO uncomment once datetime function retrieving is restored
     fun dateTimeTypes() {
         testTableByCompilation(DateTimeTypes, {
             checkColumnProperty("dateColumn", "date_column", JavaLocalDateColumnType())
@@ -289,7 +288,7 @@ class ExposedCodeGeneratorTest : ExposedCodeGeneratorFromTablesTest() {
         }, excludeSettings = TestDB.enabledInTests() - listOf(TestDB.POSTGRESQL))
     }
 
-    /*@Test
+    @Test
     fun multipleFilesTest() {
         testByCompilation(listOf(Sample, SampleRef), {
             with(TableChecker("Sample")) {
@@ -307,7 +306,7 @@ class ExposedCodeGeneratorTest : ExposedCodeGeneratorFromTablesTest() {
                 })
             }
         }, configFileName = Paths.get(resourcesConfigFilesPath.toString(), "multipleFiles.yml").toString())
-    }*/
+    }
 
     // this test basically only checks that the code compiles since Exposed doesn't expose check constraints
     // also works with PostgreSQL only, because SchemaCrawler offers this functionality for PostgresSQL/MySQL/SQLite only
@@ -322,7 +321,7 @@ class ExposedCodeGeneratorTest : ExposedCodeGeneratorFromTablesTest() {
         }, excludedDbList = TestDB.enabledInTests() - listOf(TestDB.POSTGRESQL, TestDB.POSTGRESQLNG))
     }
 
-    /*@Test
+    @Test
     fun configStringCollationSQLite() {
         testByCompilation(
                 listOf(CollationTableSQLite),
@@ -354,5 +353,5 @@ class ExposedCodeGeneratorTest : ExposedCodeGeneratorFromTablesTest() {
                 },
                 configFileName = Paths.get(resourcesConfigFilesPath.toString(), "collationConfigPostgreSQL.yml").toString(),
                 excludedDbList = TestDB.enabledInTests() - listOf(TestDB.POSTGRESQL))
-    }*/
+    }
 }

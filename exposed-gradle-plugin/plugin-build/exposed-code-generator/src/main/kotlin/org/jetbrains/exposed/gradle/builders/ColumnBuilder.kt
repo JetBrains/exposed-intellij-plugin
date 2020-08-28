@@ -36,7 +36,7 @@ open class ColumnBuilder(column: Column, private val data: TableBuilderData? = n
         if (columnKClass == null && columnInfo.columnExposedFunction == null) {
             val column = columnInfo.column
             // TODO remove once it's figured out how to use reflection on java-time module methods when using Gradle plugin
-            if (column.columnDataType.typeMappedClass != Date::class.java && column.columnDataType.typeMappedClass != Timestamp::class.java) {
+            if (!column.columnDataType.name.contains("date")) {
                 throw UnsupportedTypeException(
                         "Unable to map column ${column.name} of type ${column.columnDataType.fullName} to an Exposed column object."
                 )
@@ -80,9 +80,10 @@ open class ColumnBuilder(column: Column, private val data: TableBuilderData? = n
             }
             MemberName(packageName, columnExposedFunction.name)
         } else {
-            when (column.columnDataType.typeMappedClass) {
-                Date::class.java -> MemberName(ExposedCodeGenerator.javatimeExposedPackageName, "date")
-                Timestamp::class.java -> MemberName(ExposedCodeGenerator.javatimeExposedPackageName, "datetime")
+            val name = column.columnDataType.name.toLowerCase()
+            when {
+                name.contains("datetime") || name.contains("timestamp") -> MemberName(ExposedCodeGenerator.javatimeExposedPackageName, "datetime")
+                name.contains("date") -> MemberName(ExposedCodeGenerator.javatimeExposedPackageName, "date")
                 else -> throw UnsupportedTypeException("TODO")
             }
         }
