@@ -12,7 +12,7 @@
     <depends>com.intellij.modules.platform</depends>
 
     <extensions defaultExtensionNs="com.intellij">
-        <!-- Add your extension here -->
+        <backgroundPostStartupActivity implementation="com.jetbrains.exposed.intellij.ExposedPluginBuildActivity"/>
     </extensions>
 
     <actions>

@@ -10,9 +10,8 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.DialogWrapper
 import com.intellij.ui.layout.LCFlags
 import com.intellij.ui.layout.panel
-import org.gradle.tooling.GradleConnector
-import org.gradle.tooling.ProjectConnection
-import java.io.File
+import com.jetbrains.exposed.intellij.connection
+import org.gradle.tooling.GradleConnectionException
 import javax.swing.JComponent
 
 
@@ -69,22 +68,12 @@ class GenerateExposedCodeAction : AnAction() {
     override fun actionPerformed(e: AnActionEvent) {
         val currentProject: Project = e.project ?: return
 
-        // TODO replace
-        // put the path to your actual build.gradle.kts file for this very exposed-intellij module,
-        // or any other module here that has the Kotlin plugin applied.
-        // this is Very Bad and will be fixed later
-        val directory = File("")
-
-        val connection: ProjectConnection = GradleConnector.newConnector()
-                .forProjectDirectory(directory)
-                .connect()
-
         if (ExposedCodeGeneratorConfigDialog(currentProject).showAndGet()) {
             ApplicationManager.getApplication().invokeLater {
                 ProgressManager.getInstance().run(object : Task.Backgroundable(currentProject, "Generating Exposed code", true) {
                     override fun run(indicator: ProgressIndicator) {
-                        connection.use {
-                            it.newBuild()
+                        try {
+                            connection.newBuild()
                                     .forTasks("generateExposedCode")
                                     .setEnvironmentVariables(
                                             mapOf(
@@ -99,6 +88,8 @@ class GenerateExposedCodeAction : AnAction() {
                                     )
                                     .setStandardOutput(System.out)
                                     .run()
+                        } catch (e: GradleConnectionException) {
+                            // TODO report to user somehow
                         }
                     }
                 })
