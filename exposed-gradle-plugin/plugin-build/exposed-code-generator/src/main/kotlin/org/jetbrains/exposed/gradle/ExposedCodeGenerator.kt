@@ -96,6 +96,7 @@ class ExposedCodeGenerator {
 
     companion object {
         val exposedPackage: Package = ExposedTable::class.java.`package`
+        val javatimeExposedPackageName = "org.jetbrains.exposed.sql.java-time"
         private const val defaultFilename = "GeneratedTables"
     }
 }

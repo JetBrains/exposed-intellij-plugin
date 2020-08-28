@@ -2,10 +2,8 @@ package org.jetbrains.exposed.gradle.info
 
 import org.jetbrains.exposed.gradle.getColumnName
 import org.jetbrains.exposed.sql.Table
-import org.jetbrains.exposed.sql.`java-time`.date
 import org.jetbrains.exposed.sql.`java-time`.datetime
 import org.jetbrains.exposed.sql.statements.api.ExposedBlob
-import org.jetbrains.exposed.sql.Column as ExposedColumn
 import schemacrawler.schema.Column
 import java.math.BigDecimal
 import java.sql.Blob
@@ -18,6 +16,7 @@ import java.util.*
 import kotlin.reflect.KClass
 import kotlin.reflect.KFunction
 import kotlin.reflect.full.memberFunctions
+import org.jetbrains.exposed.sql.Column as ExposedColumn
 
 @Suppress("UNCHECKED_CAST")
 data class ColumnInfo(val column: Column) {
@@ -38,7 +37,7 @@ data class ColumnInfo(val column: Column) {
             func -> func.name == "binary" && func.parameters.any { p -> p.name == "length" }
         } as KFunction<ExposedColumn<ByteArray>>
 
-        fun <T : Any> initializeColumnParameters(columnClass: KClass<T>, columnFunction: KFunction<ExposedColumn<T>>) {
+        fun <T : Any> initializeColumnParameters(columnClass: KClass<T>, columnFunction: KFunction<ExposedColumn<T>>?) {
             columnKClass = columnClass
             columnExposedFunction = columnFunction
         }
@@ -72,10 +71,11 @@ data class ColumnInfo(val column: Column) {
                 name.contains("char") ->
                     initializeColumnParameters(String::class, exposedChar)
                 name.contains("text") -> initializeColumnParameters(String::class, getExposedFunction("text"))
+                // TODO uncomment once it's clear why this fails when launched from Gradle plugin
                 name.contains("time") ->
-                    initializeColumnParameters(LocalDateTime::class, Table::datetime)
+                    initializeColumnParameters(LocalDateTime::class, null)
                 name.contains("date") ->
-                    initializeColumnParameters(LocalDate::class, Table::date)
+                    initializeColumnParameters(LocalDate::class, null)
                 name.contains("binary") || name.contains("bytea") ->
                     initializeColumnParameters(ByteArray::class, exposedBinary)
                 // this is what SQLite occasionally uses for single precision floating point numbers
@@ -103,9 +103,9 @@ data class ColumnInfo(val column: Column) {
             UUID::class.javaObjectType -> initializeColumnParameters(UUID::class, getExposedFunction("uuid"))
             Object::class.javaObjectType -> initializeObject()
             Date::class.javaObjectType, LocalDate::class.javaObjectType ->
-                initializeColumnParameters(LocalDate::class, Table::date)
+                initializeColumnParameters(LocalDate::class, null)
             Timestamp::class.javaObjectType, LocalDateTime::class.javaObjectType ->
-                initializeColumnParameters(LocalDateTime::class, Table::datetime)
+                initializeColumnParameters(LocalDateTime::class, null)
             else -> {
                 val name = column.columnDataType.name.toLowerCase()
                 when {

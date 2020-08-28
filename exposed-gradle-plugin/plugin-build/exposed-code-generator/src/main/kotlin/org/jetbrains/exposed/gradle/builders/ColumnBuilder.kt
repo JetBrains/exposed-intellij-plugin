@@ -16,6 +16,8 @@ import schemacrawler.schema.IndexType
 import schemacrawler.schema.TableConstraint
 import schemacrawler.schema.TableConstraintType
 import java.math.BigDecimal
+import java.sql.Date
+import java.sql.Timestamp
 import java.time.LocalDate
 import java.time.LocalDateTime
 import kotlin.reflect.full.valueParameters
@@ -33,7 +35,12 @@ open class ColumnBuilder(column: Column, private val data: TableBuilderData? = n
         val columnKClass = columnInfo.columnKClass
         if (columnKClass == null && columnInfo.columnExposedFunction == null) {
             val column = columnInfo.column
-            throw UnsupportedTypeException("Unable to map column ${column.name} of type ${column.columnDataType.fullName} to an Exposed column object.")
+            // TODO remove once it's figured out how to use reflection on java-time module methods when using Gradle plugin
+            if (column.columnDataType.typeMappedClass != Date::class.java && column.columnDataType.typeMappedClass != Timestamp::class.java) {
+                throw UnsupportedTypeException(
+                        "Unable to map column ${column.name} of type ${column.columnDataType.fullName} to an Exposed column object."
+                )
+            }
         }
         return PropertySpec.builder(
                 getPropertyNameForColumn(columnInfo.column),
@@ -63,16 +70,24 @@ open class ColumnBuilder(column: Column, private val data: TableBuilderData? = n
     open fun CodeBlock.Builder.generateExposedColumnFunctionCall(columnInfo: ColumnInfo) {
         val column = columnInfo.column
         val columnKClass = columnInfo.columnKClass!!
-        val columnExposedFunction = columnInfo.columnExposedFunction!!
-        val columnExposedPackage = columnExposedFunction.javaMethod!!.declaringClass.`package`
-        val packageName = if (columnExposedPackage == ExposedCodeGenerator.exposedPackage) {
-            ""
+        val memberName = if (columnInfo.columnExposedFunction != null) {
+            val columnExposedFunction = columnInfo.columnExposedFunction!!
+            val columnExposedPackage = columnExposedFunction.javaMethod!!.declaringClass.`package`
+            val packageName = if (columnExposedPackage == ExposedCodeGenerator.exposedPackage) {
+                ""
+            } else {
+                columnExposedPackage.name
+            }
+            MemberName(packageName, columnExposedFunction.name)
         } else {
-            columnExposedPackage.name
+            when (column.columnDataType.typeMappedClass) {
+                Date::class.java -> MemberName(ExposedCodeGenerator.javatimeExposedPackageName, "date")
+                Timestamp::class.java -> MemberName(ExposedCodeGenerator.javatimeExposedPackageName, "datetime")
+                else -> throw UnsupportedTypeException("TODO")
+            }
         }
-        val memberName = MemberName(packageName, columnExposedFunction.name)
 
-        if (columnInfo.columnExposedFunction!!.valueParameters.size > 1) {
+        if (columnInfo.columnExposedFunction != null && columnInfo.columnExposedFunction!!.valueParameters.size > 1) {
             val arguments = getColumnFunctionArguments()
             when (columnKClass) {
                 // decimal -> precision, scale
@@ -104,7 +119,7 @@ open class ColumnBuilder(column: Column, private val data: TableBuilderData? = n
                     } else {
                         CodeBlock.of("")
                     }
-                    if (columnExposedFunction.name in listOf("char", "varchar", "binary")) {
+                    if (columnInfo.columnExposedFunction!!.name in listOf("char", "varchar", "binary")) {
                         val size = when {
                             arguments.isNotEmpty() -> arguments[0]
                             column.size >= 0 && column.size <= MaxSize.MAX_VARCHAR_SIZE -> column.size.toString()
