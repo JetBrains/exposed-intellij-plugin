@@ -1,9 +1,11 @@
 package org.jetbrains.exposed.gradle
 
+import schemacrawler.crawl.SchemaCrawler
 import schemacrawler.schema.Table
 import schemacrawler.schemacrawler.LoadOptionsBuilder
 import schemacrawler.schemacrawler.SchemaCrawlerOptionsBuilder
 import schemacrawler.schemacrawler.SchemaInfoLevelBuilder
+import schemacrawler.schemacrawler.SchemaRetrievalOptionsBuilder
 import schemacrawler.tools.databaseconnector.DatabaseConnectionSource
 import schemacrawler.tools.databaseconnector.SingleUseUserCredentials
 import schemacrawler.utility.SchemaCrawlerUtility
@@ -79,7 +81,9 @@ class MetadataGetter {
 
 
         val options = optionsBuilder.toOptions()
-        val catalog = SchemaCrawlerUtility.getCatalog(dataSource.get(), options)
+        val connection = dataSource.get()
+        val retrievalOptions = SchemaRetrievalOptionsBuilder.builder().fromConnnection(connection).toOptions()
+        val catalog = SchemaCrawler(connection, retrievalOptions, options).crawl()
 //        return sortTablesByDependencies(catalog.schemas.flatMap { catalog.getTables(it) })
         return catalog.schemas.flatMap { catalog.getTables(it) }
     }
