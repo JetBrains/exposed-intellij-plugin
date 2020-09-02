@@ -109,7 +109,7 @@ abstract class ExposedGenerateCodeTask : DefaultTask() {
     @TaskAction
     fun generateExposedCode() {
         val metadataGetter = if (connectionURL.orNull != null) {
-            MetadataGetter({ connectionURL.get() })
+            MetadataGetter({ connectionURL.get() }, user.orNull, password.orNull)
         } else {
             MetadataGetter(
                     databaseDriver.get(),
