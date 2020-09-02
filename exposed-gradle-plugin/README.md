@@ -24,9 +24,9 @@ This Gradle plugin connects to a database and generates Exposed table definition
 
 * Using a .properties file and specifying its filepath
 
-```
+```kotlin
 exposedCodeGeneratorConfig {
-    propertiesFilename.set("exposedPluginProps.properties")
+    propertiesFilename = "exposedPluginProps.properties"
 }
 ```
 
@@ -37,12 +37,12 @@ connectionURL=jdbc:postgresql:testone?user=postgres&password=testing
 
 * Using a task configuration in a `build.gradle` file
 
-```
+```kotlin
 exposedCodeGeneratorConfig {
-    databaseDriver.set("postgresql")
-    databaseName.set("pltest")
-    user.set("root")
-    configFilepath.set("exposedCodeGeneratorConfig.yml")
+    databaseDriver = "postgresql"
+    databaseName = "pltest"
+    user = "root"
+    configFilepath = "exposedCodeGeneratorConfig.yml"
 }
 ```
 
