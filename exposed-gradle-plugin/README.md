@@ -1,4 +1,4 @@
-#Exposed Code Generation Gradle Plugin
+# Exposed Code Generation Gradle Plugin
 
 This Gradle plugin connects to a database and generates Exposed table definitions for all of its tables.
 
@@ -48,7 +48,7 @@ exposedCodeGeneratorConfig {
 
 It is strongly recommended to avoid mixing different ways of specifying parameters.
 
-###Database connection parameters:
+### Database connection parameters:
 
 1. `connectionURL` -- connection URL as used with JDBC (e.g. `jdbc:postgresql://localhost:12346/user=postgres&password=`)
 
