@@ -9,7 +9,7 @@ dependencies {
     implementation(kotlin("stdlib-jdk8"))
     implementation(gradleApi())
 
-    implementation("com.squareup:kotlinpoet:1.6.0")
+    implementation("com.squareup:kotlinpoet:1.8.0")
     implementation("us.fatehi:schemacrawler:16.9.3")
 
     testImplementation(TestingLib.JUNIT)
