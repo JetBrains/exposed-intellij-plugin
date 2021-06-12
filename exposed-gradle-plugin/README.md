@@ -4,6 +4,14 @@ This Gradle plugin connects to a database and generates Exposed table definition
 
 ### Usage:
 
+Add plugin declaration into your build script:
+```kotlin
+plugins {
+    id("com.jetbrains.exposed.gradle.plugin")
+}
+```
+Use gradle task as
+
 `gradle generateExposedCode`
 
 ### How to specify parameters:
