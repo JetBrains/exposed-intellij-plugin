@@ -5,7 +5,7 @@ pluginManagement {
     }
 }
 
-rootProject.name = ("exposed-gradle")
+rootProject.name = "exposed-gradle"
 
 include(":example")
 includeBuild("plugin-build")

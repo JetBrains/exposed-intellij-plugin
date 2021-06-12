@@ -1,3 +1,5 @@
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompile;
+
 plugins {
     kotlin("jvm")
     id("java-gradle-plugin")
@@ -5,7 +7,7 @@ plugins {
 }
 
 dependencies {
-    implementation("com.jetbrains.exposed.gradle:exposed-code-generator:1.0")
+    api("com.jetbrains.exposed.gradle:exposed-code-generator:0.1")
     implementation(kotlin("stdlib-jdk8"))
     implementation(gradleApi())
 
@@ -19,7 +21,6 @@ java {
     sourceCompatibility = JavaVersion.VERSION_1_8
     targetCompatibility = JavaVersion.VERSION_1_8
 }
-
 
 gradlePlugin {
     plugins {
@@ -59,7 +60,14 @@ tasks.create("setupPluginUploadFromEnvironment") {
     }
 }
 
-tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
+tasks.jar {
+    val exposedCodeGenerator = gradle.includedBuild("exposed-code-generator")
+    val exposedCodeGeneratorOutput =
+        files(exposedCodeGenerator.projectDir.absolutePath + "/build/classes/kotlin/main/")
+    from(exposedCodeGeneratorOutput)
+}
+
+tasks.withType<KotlinCompile> {
     kotlinOptions.jvmTarget = "1.8"
 }
 
