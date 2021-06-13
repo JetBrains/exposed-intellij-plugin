@@ -139,7 +139,13 @@ abstract class ExposedGenerateCodeTask : DefaultTask() {
         }
         val files = exposedCodeGenerator.generateExposedTables()
 
-        files.forEach { it.writeTo(outputDirectory.get().asFile) }
+        files.forEach {
+            val directory = outputDirectory.get()
+            it.writeTo(directory.asFile)
+            val generatedFile = directory.file(it.toJavaFileObject().name).asFile
+            val generatedContent = generatedFile.readText()
+            generatedFile.writeText(ExposedCodeGenerator.postProcessOutput(generatedContent))
+        }
     }
 
     private fun List<schemacrawler.schema.Table>.filterUtilTables() = this.filterNot { it.fullName.startsWith("sys.") }

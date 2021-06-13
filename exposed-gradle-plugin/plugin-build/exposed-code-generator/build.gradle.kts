@@ -5,7 +5,6 @@ plugins {
 }
 
 group = "com.jetbrains.exposed.gradle"
-version = "0.1"
 
 repositories {
     mavenCentral()
@@ -78,9 +77,6 @@ tasks {
     }
     compileTestKotlin {
         kotlinOptions.jvmTarget = "1.8"
-    }
-    jar {
-        enabled = false
     }
 }
 

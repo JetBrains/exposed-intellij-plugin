@@ -161,9 +161,8 @@ open class ExposedCodeGeneratorCompilationTest : DatabaseTestsBase() {
     protected fun compileExposedFile(vararg fileSpecs: FileSpec): KotlinCompilation.Result {
         val kotlinSources = mutableListOf<SourceFile>()
         for (fileSpec in fileSpecs) {
-            val sb = StringBuilder()
-            fileSpec.writeTo(sb)
-            kotlinSources.add(SourceFile.kotlin("${fileSpec.name}.kt", sb.toString()))
+            val sourceCode = ExposedCodeGenerator.postProcessOutput(buildString { fileSpec.writeTo(this) })
+            kotlinSources.add(SourceFile.kotlin("${fileSpec.name}.kt",sourceCode))
         }
 
         return KotlinCompilation().apply {

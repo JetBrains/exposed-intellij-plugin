@@ -97,6 +97,11 @@ class ExposedCodeGenerator {
     companion object {
         val exposedPackage: Package = ExposedTable::class.java.`package`
         private const val defaultFilename = "GeneratedTables"
+        private val publicVisibilityRegex = "(\\s+)*public (.+)".toRegex(RegexOption.MULTILINE)
+
+        fun postProcessOutput(content: String): String {
+            return content.replace(publicVisibilityRegex, "$1$2")
+        }
     }
 }
 
