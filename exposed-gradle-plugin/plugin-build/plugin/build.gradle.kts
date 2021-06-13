@@ -15,6 +15,13 @@ dependencies {
     implementation("us.fatehi:schemacrawler:16.9.3")
 
     testImplementation(TestingLib.JUNIT)
+
+    apply("../exposed-code-generator/deps.gradle.kts")
+    val applyGeneratorDependencies = rootProject.extra["applyGeneratorDependencies"] as ((String, String, String) -> Unit) -> Unit
+
+    applyGeneratorDependencies{ group, artifactId, version ->
+        implementation(group, artifactId, version)
+    }
 }
 
 java {
@@ -43,6 +50,10 @@ pluginBundle {
         getByName(PluginCoordinates.ID) {
             displayName = PluginBundle.DISPLAY_NAME
         }
+    }
+
+    withDependencies {
+        removeIf { it.artifactId == "exposed-code-generator" }
     }
 }
 

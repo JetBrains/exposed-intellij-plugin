@@ -10,55 +10,16 @@ repositories {
     mavenCentral()
 }
 
-object Versions {
-    const val KOTLIN = "1.5.10"
-    const val EXPOSED = "0.32.1"
-    const val SCHEMA_CRAWLER = "16.9.3"
-}
-
 dependencies {
     implementation(kotlin("stdlib-jdk8"))
-    implementation("org.jetbrains.kotlin", "kotlin-reflect", Versions.KOTLIN)
+    implementation("org.jetbrains.kotlin", "kotlin-reflect",  "1.5.10")
 
-    // exposed
-    implementation("org.jetbrains.exposed", "exposed-core", Versions.EXPOSED)
-    implementation("org.jetbrains.exposed", "exposed-dao", Versions.EXPOSED)
-    implementation("org.jetbrains.exposed", "exposed-jdbc", Versions.EXPOSED)
-    implementation("org.jetbrains.exposed", "exposed-java-time", Versions.EXPOSED)
+    apply("deps.gradle.kts")
+    val applyGeneratorDependencies = rootProject.extra["applyGeneratorDependencies"] as ((String, String, String) -> Unit) -> Unit
 
-    // schemacrawler
-    implementation("us.fatehi", "schemacrawler", Versions.SCHEMA_CRAWLER)
-    implementation("us.fatehi", "schemacrawler-mysql", Versions.SCHEMA_CRAWLER)
-    implementation("us.fatehi", "schemacrawler-sqlite", Versions.SCHEMA_CRAWLER)
-    implementation("us.fatehi", "schemacrawler-postgresql", Versions.SCHEMA_CRAWLER)
-
-    // utils
-    implementation("org.apache.commons", "commons-text", "1.8")
-    // TODO replace by anything else that can perform topsort without me having to write it from scratch
-//    implementation("com.github.Erdos-Graph-Framework:Erdos:v1.0")
-    implementation("com.facebook.presto", "presto-parser", "0.239")
-
-
-    // kotlin code generation/testing
-    implementation("com.squareup:kotlinpoet:1.8.0")
-    implementation("com.github.tschuchortdev:kotlin-compile-testing:1.4.2")
-
-    // yaml config files
-    implementation("com.sksamuel.hoplite", "hoplite-yaml", "1.3.3")
-
-    // logging
-    implementation("org.slf4j:slf4j-api:1.7.30")
-//    implementation( "ch.qos.logback", "logback-classic", "1.2.3")
-
-    // database drivers
-    implementation("com.h2database", "h2","1.4.199")
-    implementation("org.postgresql:postgresql:42.2.2")
-    implementation("org.xerial:sqlite-jdbc:3.32.3")
-    implementation("org.mariadb.jdbc", "mariadb-java-client", "2.6.0")
-    implementation("mysql", "mysql-connector-java", "8.0.25")
-    implementation("com.impossibl.pgjdbc-ng", "pgjdbc-ng", "0.8.4")
-    implementation("com.oracle.database.jdbc", "ojdbc8", "12.2.0.1")
-    implementation("com.microsoft.sqlserver", "mssql-jdbc", "8.2.2.jre8")
+    applyGeneratorDependencies{ group, artifactId, version ->
+        implementation(group, artifactId, version)
+    }
 
     testImplementation("junit", "junit", "4.12")
     testImplementation("org.assertj:assertj-core:3.16.1")
