@@ -9,7 +9,7 @@ object BuildPluginsVersion {
     const val KTLINT = "9.2.1"
     const val EXPOSED = "0.32.1"
 
-    const val PLUGIN_PUBLISH = "0.11.0"
+    const val PLUGIN_PUBLISH = "0.15.0"
     const val VERSIONS_PLUGIN = "0.28.0"
 }
 
