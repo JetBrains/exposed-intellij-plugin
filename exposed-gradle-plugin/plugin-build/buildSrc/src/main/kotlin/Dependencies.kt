@@ -5,7 +5,7 @@ object Versions {
 
 object BuildPluginsVersion {
     const val DETEKT = "1.10.0"
-    const val KOTLIN = "1.5.10"
+    const val KOTLIN = "1.5.31"
     const val KTLINT = "9.2.1"
     const val EXPOSED = "0.35.1"
 
