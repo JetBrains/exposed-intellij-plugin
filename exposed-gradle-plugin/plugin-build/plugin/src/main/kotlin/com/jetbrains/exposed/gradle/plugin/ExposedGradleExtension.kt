@@ -22,6 +22,8 @@ abstract class ExposedGradleExtension @Inject constructor(project: Project) {
     var host: String? = null
     var port: String? = null
     var ipv6Host: String? = null
+    var connectionProperties: Map<String, String> = mutableMapOf()
+
 
     var connectionURL: String? = null
 

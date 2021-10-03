@@ -23,9 +23,10 @@ class MetadataGetter {
             password: String? = null,
             host: String? = null,
             port: String? = null,
-            ipv6Host: String? = null
+            ipv6Host: String? = null,
+            additionalProperties: Map<String, String>? = null
     ) {
-        val hostPortString = StringBuilder().apply {
+        val hostPortString = buildString {
             if (ipv6Host != null || host != null) {
                 append("//")
                 if (ipv6Host != null) {
@@ -39,7 +40,7 @@ class MetadataGetter {
                 append("/")
             }
         }
-        dataSource = DatabaseConnectionSource("jdbc:$databaseDriver:$hostPortString$databaseName")
+        dataSource = DatabaseConnectionSource("jdbc:$databaseDriver:$hostPortString$databaseName", additionalProperties.orEmpty())
         initDataSource(dataSource, user, password)
     }
 

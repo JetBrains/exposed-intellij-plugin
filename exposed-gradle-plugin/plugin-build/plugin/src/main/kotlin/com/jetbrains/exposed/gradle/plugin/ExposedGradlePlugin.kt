@@ -22,7 +22,7 @@ abstract class ExposedGradlePlugin : Plugin<Project> {
             it.host.set(getStringProperty(project, extension, "host"))
             it.port.set(getStringProperty(project, extension, "port"))
             it.ipv6Host.set(getStringProperty(project, extension, "ipv6Host"))
-
+            it.connectionProperties.set(extension.connectionProperties)
             it.connectionURL.set(getStringProperty(project, extension, "connectionURL"))
 
             it.packageName.set(getStringProperty(project, extension, "packageName"))

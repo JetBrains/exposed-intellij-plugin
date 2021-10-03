@@ -63,6 +63,11 @@ abstract class ExposedGenerateCodeTask : DefaultTask() {
     abstract val connectionURL: Property<String>
 
     @get:Input
+    @get:Option(option = "connectionProperties", description = "Additional connection properties. Will be added to jdbc connection")
+    @get:Optional
+    abstract val connectionProperties: MapProperty<String, String>
+
+    @get:Input
     @get:Option(option = "packageName", description = "Generated files will be placed in this package")
     @get:Optional
     abstract val packageName: Property<String>
@@ -118,7 +123,8 @@ abstract class ExposedGenerateCodeTask : DefaultTask() {
                     password.orNull,
                     host.orNull,
                     port.orNull,
-                    ipv6Host.orNull
+                    ipv6Host.orNull,
+                    connectionProperties.orNull
             )
         }
 
