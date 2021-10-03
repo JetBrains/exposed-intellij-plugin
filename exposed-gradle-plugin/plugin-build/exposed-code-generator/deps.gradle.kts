@@ -5,7 +5,7 @@ rootProject.extra["applyGeneratorDependencies"] = { implementation: (group: Stri
 }
 
 fun applyGeneratorDependencies(implementation: (group: String, artifactId: String, version: String) -> Unit) {
-    val exposedVersion = "0.32.1"
+    val exposedVersion = "0.35.1"
     implementation("org.jetbrains.exposed", "exposed-core", exposedVersion)
     implementation("org.jetbrains.exposed", "exposed-dao", exposedVersion)
     implementation("org.jetbrains.exposed", "exposed-jdbc", exposedVersion)
