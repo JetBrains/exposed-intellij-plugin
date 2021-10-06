@@ -6,4 +6,5 @@ exposedCodeGeneratorConfig {
     connectionURL = "jdbc:sqlite:${project.file("chinook.db").absolutePath}"
     user = "test"
     password = "test"
+    outputDirectory.set(projectDir)
 }

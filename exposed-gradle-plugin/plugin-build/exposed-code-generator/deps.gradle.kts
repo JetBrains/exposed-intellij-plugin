@@ -11,7 +11,7 @@ fun applyGeneratorDependencies(implementation: (group: String, artifactId: Strin
     implementation("org.jetbrains.exposed", "exposed-jdbc", exposedVersion)
     implementation("org.jetbrains.exposed", "exposed-java-time", exposedVersion)
 
-    val schemaCrawlerVersion = "16.9.3"
+    val schemaCrawlerVersion = "16.15.7"
     implementation("us.fatehi", "schemacrawler", schemaCrawlerVersion)
     implementation("us.fatehi", "schemacrawler-mysql", schemaCrawlerVersion)
     implementation("us.fatehi", "schemacrawler-sqlite", schemaCrawlerVersion)
@@ -25,11 +25,11 @@ fun applyGeneratorDependencies(implementation: (group: String, artifactId: Strin
 
 
     // kotlin code generation/testing
-    implementation("com.squareup", "kotlinpoet", "1.8.0")
+    implementation("com.squareup", "kotlinpoet", "1.10.1")
     implementation("com.github.tschuchortdev", "kotlin-compile-testing", "1.4.2")
 
     // yaml config files
-    implementation("com.sksamuel.hoplite", "hoplite-yaml", "1.3.3")
+    implementation("com.sksamuel.hoplite", "hoplite-yaml", "1.4.9")
 
     // logging
     implementation("org.slf4j", "slf4j-api", "1.7.30")

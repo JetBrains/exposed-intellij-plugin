@@ -11,8 +11,8 @@ dependencies {
     implementation(kotlin("stdlib-jdk8"))
     implementation(gradleApi())
 
-    implementation("com.squareup:kotlinpoet:1.8.0")
-    implementation("us.fatehi:schemacrawler:16.9.3")
+    implementation("com.squareup:kotlinpoet:1.10.1")
+    implementation("us.fatehi:schemacrawler:16.15.7")
 
     testImplementation(TestingLib.JUNIT)
 
