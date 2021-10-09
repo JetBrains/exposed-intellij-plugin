@@ -6,6 +6,10 @@ plugins {
     id("com.gradle.plugin-publish")
 }
 
+repositories {
+    gradlePluginPortal()
+}
+
 dependencies {
     api("com.jetbrains.exposed.gradle:exposed-code-generator")
     implementation(kotlin("stdlib-jdk8"))
@@ -13,6 +17,10 @@ dependencies {
 
     implementation("com.squareup:kotlinpoet:1.10.1")
     implementation("us.fatehi:schemacrawler:16.15.7")
+
+    compileOnly("com.github.johnrengelman.shadow:com.github.johnrengelman.shadow.gradle.plugin:7.0.0")
+    api("org.ow2.asm", "asm", "9.2")
+    api("org.ow2.asm", "asm-util", "9.2")
 
     testImplementation(TestingLib.JUNIT)
 
