@@ -1,7 +1,7 @@
 object PluginCoordinates {
     const val ID = "com.jetbrains.exposed.gradle.plugin"
     const val GROUP = "com.jetbrains.exposed.gradle"
-    const val VERSION = "0.2.1"
+    const val VERSION = "0.2.2-SNAPSHOT"
     const val IMPLEMENTATION_CLASS = "com.jetbrains.exposed.gradle.plugin.ExposedGradlePlugin"
 }
 
