@@ -72,6 +72,7 @@ It is strongly recommended to avoid mixing different ways of specifying paramete
     5. `host` (IPv4)
     6. `port`
     7. `ipv6Host`
+    8. `connectionProperties` - map of properties that will be added to `connectionURL` string
     
 All of those parameters are optional; however, the expected behavior is that the user does not mix a `connectionURL` with other parameters.
 
@@ -89,6 +90,27 @@ All of those parameters are optional; however, the expected behavior is that the
 ### Output directory:
 
 By default, the generated files are written to `build/tables` directory (in case of a single file generation, the filename is `GeneratedTables.kt`). The parameter is `outputDirectory` and it can be set like all the other ones.
-     
+
+
+# Shadow plugin relocate extension for kotlin classes
+For now, [Shadow](https://github.com/johnrengelman/shadow) gradle plugin relocates kotlin classes not so good in a place of reflection.
+Some class metadata stayed not relocated that brakes the code in runtime. 
+
+If you need the proper kotlin class relocation use `ShadowJar.kotlinRelocate` function instead of `ShadowJar.relocate`.
+Don't use `kotlinRelocate` on java dependencies as it will add overhead on relocation time without any benefit.
+
+Also, if you plan to relocate Exposed dependencies don't forget to add `mergeServiceFiles()` call in your task declaration.
+
+```kotlin
+plugins {
+   id("com.github.johnrengelman.shadow")
+   id("com.jetbrains.exposed.gradle.plugin")
+}
+
+tasks.shadowJar {
+   mergeServiceFiles()
+   kotlinRelocate("org.jetbrains.exposed", "my.own.project.exposed")
+}
+```
     
     
