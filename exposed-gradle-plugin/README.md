@@ -112,5 +112,5 @@ tasks.shadowJar {
    kotlinRelocate("org.jetbrains.exposed", "my.own.project.exposed")
 }
 ```
-    
+Please note that it's still impossible to relocate kotlin-stdlib itself as it has internal synthetic classes like `kotlin.Any` that will not be relocated.      
     
