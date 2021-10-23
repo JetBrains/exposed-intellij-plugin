@@ -5,6 +5,7 @@ import com.github.jengelman.gradle.plugins.shadow.relocation.RelocatePathContext
 import com.github.jengelman.gradle.plugins.shadow.relocation.Relocator
 import com.github.jengelman.gradle.plugins.shadow.relocation.SimpleRelocator
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+import com.jetbrains.exposed.gradle.plugin.shadowjar.KotlinRelocator.Companion.storeRelocationPath
 import org.gradle.api.Action
 import java.nio.file.FileSystems
 import java.nio.file.Files
@@ -27,22 +28,25 @@ private class KotlinRelocator(private val task: ShadowJar, private val delegate:
 
     companion object {
         private val foundRelocatedSubPaths: MutableMap<ShadowJar, MutableSet<String>> = hashMapOf()
-        private val relocationPaths = mutableMapOf<String, String>()
+        private val relocationPaths: MutableMap<ShadowJar, MutableMap<String, String>> = hashMapOf()
+        private fun getRelocationPaths(shadowJar: ShadowJar) = relocationPaths.getOrPut(shadowJar) { hashMapOf() }
 
-        internal fun storeRelocationPath(pattern: String, destination: String) {
+        internal fun ShadowJar.storeRelocationPath(pattern: String, destination: String) {
             val newPattern = pattern.replace('.', '/') + "/"
-            val intersections = relocationPaths.keys.filter { it.startsWith(newPattern) }
+            val taskRelocationPaths = getRelocationPaths(this)
+            val intersections = taskRelocationPaths.keys.filter { it.startsWith(newPattern) }
             require(intersections.isEmpty()) {
                 "Can't relocate from $pattern to $destination as it clashes with another paths: ${intersections.joinToString()}"
             }
-            relocationPaths[newPattern] = destination.replace('.', '/') + "/"
+            taskRelocationPaths[newPattern] = destination.replace('.', '/') + "/"
         }
-        private fun patchFile(file: Path) {
+        private fun ShadowJar.patchFile(file: Path) {
             if(Files.isDirectory(file) || !file.toString().endsWith(".class")) return
+            val taskRelocationPaths = getRelocationPaths(this)
             Files.newInputStream(file).use { ins ->
                 val cr = ClassReader(ins)
-                val cw = PatchedClassWriter(cr, 0, relocationPaths)
-                val scanner = AnnotationScanner(cw, relocationPaths)
+                val cw = PatchedClassWriter(cr, 0, taskRelocationPaths)
+                val scanner = AnnotationScanner(cw, taskRelocationPaths)
                 cr.accept(scanner, 0)
                 if (scanner.wasPatched || cw.wasPatched) {
                     ins.close()
@@ -59,7 +63,7 @@ private class KotlinRelocator(private val task: ShadowJar, private val delegate:
                     val packagePath = fs.getPath(it)
                     if (Files.exists(packagePath) && Files.isDirectory(packagePath)) {
                         Files.list(packagePath).forEach { file ->
-                            patchFile(file)
+                            task.patchFile(file)
                         }
                     }
                 }
@@ -71,7 +75,7 @@ private class KotlinRelocator(private val task: ShadowJar, private val delegate:
 fun ShadowJar.kotlinRelocate(pattern: String, destination: String, configure: Action<SimpleRelocator>) {
     val delegate = SimpleRelocator(pattern, destination, ArrayList(), ArrayList())
     configure.execute(delegate)
-    KotlinRelocator.storeRelocationPath(pattern, destination)
+    storeRelocationPath(pattern, destination)
     relocate(KotlinRelocator(this, delegate))
 }
 
