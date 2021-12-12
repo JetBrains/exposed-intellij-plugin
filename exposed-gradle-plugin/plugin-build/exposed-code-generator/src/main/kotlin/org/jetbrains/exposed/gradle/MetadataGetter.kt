@@ -40,8 +40,8 @@ class MetadataGetter {
         initDataSource(dataSource, user, password)
     }
 
-    constructor(connection: () -> String, user: String? = null, password: String? = null) {
-        dataSource = DatabaseConnectionSource(connection())
+    constructor(connection: () -> String, user: String? = null, password: String? = null, additionalProperties: Map<String, String>? = null) {
+        dataSource = DatabaseConnectionSource(connection(), additionalProperties.orEmpty())
         initDataSource(dataSource, user, password)
     }
 
