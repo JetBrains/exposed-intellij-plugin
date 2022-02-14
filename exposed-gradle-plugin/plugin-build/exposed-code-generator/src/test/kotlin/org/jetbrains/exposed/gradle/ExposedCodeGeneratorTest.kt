@@ -219,9 +219,12 @@ class ExposedCodeGeneratorTest : ExposedCodeGeneratorFromTablesTest() {
             checkColumnProperty("c1", "c1", IntegerColumnType())
             checkColumnProperty("c2", "c2", TextColumnType())
             checkColumnProperty("c3", "c3", IntegerColumnType())
+            checkColumnProperty("c4", "c4", IntegerColumnType())
+            checkColumnProperty("c5", "c5", IntegerColumnType())
         }, excludedDbList = listOf(TestDB.H2, TestDB.H2_MYSQL), indexes = listOf(
                 CompilationResultChecker.IndexWrapper("custom_index_name", false, setOf("c1", "c3")),
-                CompilationResultChecker.IndexWrapper("custom_unique_index_name", true, setOf("c3"))
+                CompilationResultChecker.IndexWrapper("custom_unique_index_name", true, setOf("c3")),
+                CompilationResultChecker.IndexWrapper("custom_index_2_name", false, setOf("c4", "c5")),
         ))
     }
 
@@ -241,9 +244,12 @@ class ExposedCodeGeneratorTest : ExposedCodeGeneratorFromTablesTest() {
         testTableByCompilation(UniqueIndexTable, {
             checkColumnProperty("c1", "c1", IntegerColumnType())
             checkColumnProperty("c2", "c2", IntegerColumnType())
+            checkColumnProperty("c3", "c3", IntegerColumnType())
+            checkColumnProperty("c4", "c4", IntegerColumnType())
         }, excludedDbList = listOf(TestDB.H2, TestDB.H2_MYSQL), indexes = listOf(
                 CompilationResultChecker.IndexWrapper("idx1", true, setOf("c2")),
-                CompilationResultChecker.IndexWrapper("idx2", true, setOf("c1", "c2"))
+                CompilationResultChecker.IndexWrapper("idx2", true, setOf("c1", "c2")),
+                CompilationResultChecker.IndexWrapper("idx3", true, setOf("c3", "c4")),
         ))
     }
 

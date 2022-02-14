@@ -133,9 +133,9 @@ class TableBuilder(
                 val indexType = indexTypeName[index.indexType]
                 val indexTypeString = if (indexType != null) ", indexType = \"$indexType\"" else ""
                 if (index.isUnique) {
-                    add("%M(%S, ${columns.joinToString(", ")}$indexTypeString)", MemberName("", "uniqueIndex"), name)
+                    addStatement("%M(%S, ${columns.joinToString(", ")}$indexTypeString)", MemberName("", "uniqueIndex"), name)
                 } else {
-                    add("%M(%S, false, ${columns.joinToString(", ")}$indexTypeString)", MemberName("", "index"), name)
+                    addStatement("%M(%S, false, ${columns.joinToString(", ")}$indexTypeString)", MemberName("", "index"), name)
                 }
             }
         })
