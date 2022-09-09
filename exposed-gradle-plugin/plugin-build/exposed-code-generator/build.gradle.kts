@@ -1,7 +1,7 @@
 import org.jetbrains.kotlin.gradle.dsl.KotlinJvmCompile
 
 plugins {
-    kotlin("jvm") version "1.5.31"
+    kotlin("jvm") version "1.7.10"
 }
 
 group = "com.jetbrains.exposed.gradle"
@@ -12,7 +12,7 @@ repositories {
 
 dependencies {
     implementation(kotlin("stdlib-jdk8"))
-    implementation("org.jetbrains.kotlin", "kotlin-reflect",  "1.5.31")
+    implementation("org.jetbrains.kotlin", "kotlin-reflect",  "1.7.10")
 
     apply("deps.gradle.kts")
     val applyGeneratorDependencies = rootProject.extra["applyGeneratorDependencies"] as ((String, String, String) -> Unit) -> Unit

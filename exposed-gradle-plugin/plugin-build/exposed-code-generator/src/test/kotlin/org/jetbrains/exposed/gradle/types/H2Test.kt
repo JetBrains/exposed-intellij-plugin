@@ -5,8 +5,8 @@ import org.jetbrains.exposed.gradle.CompilationResultChecker
 import org.jetbrains.exposed.gradle.ExposedCodeGeneratorDBTest
 import org.jetbrains.exposed.gradle.tests.TestDB
 import org.jetbrains.exposed.sql.*
-import org.jetbrains.exposed.sql.`java-time`.JavaLocalDateColumnType
-import org.jetbrains.exposed.sql.`java-time`.JavaLocalDateTimeColumnType
+import org.jetbrains.exposed.sql.javatime.JavaLocalDateColumnType
+import org.jetbrains.exposed.sql.javatime.JavaLocalDateTimeColumnType
 import org.junit.Test
 
 class H2Test : ExposedCodeGeneratorDBTest("vartypes.sql", "h2", listOf(TestDB.H2, TestDB.H2_MYSQL)) {

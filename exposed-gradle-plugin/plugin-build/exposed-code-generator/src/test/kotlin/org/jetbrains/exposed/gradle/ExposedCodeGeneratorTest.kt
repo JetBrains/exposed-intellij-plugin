@@ -9,8 +9,8 @@ import org.jetbrains.exposed.dao.id.UUIDTable
 import org.jetbrains.exposed.gradle.databases.*
 import org.jetbrains.exposed.gradle.tests.TestDB
 import org.jetbrains.exposed.sql.*
-import org.jetbrains.exposed.sql.`java-time`.JavaLocalDateColumnType
-import org.jetbrains.exposed.sql.`java-time`.JavaLocalDateTimeColumnType
+import org.jetbrains.exposed.sql.javatime.JavaLocalDateColumnType
+import org.jetbrains.exposed.sql.javatime.JavaLocalDateTimeColumnType
 import org.junit.Test
 import java.nio.file.Paths
 

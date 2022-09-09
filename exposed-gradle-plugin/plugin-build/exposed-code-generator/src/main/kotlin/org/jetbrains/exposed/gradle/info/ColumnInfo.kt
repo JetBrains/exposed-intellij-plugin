@@ -2,8 +2,8 @@ package org.jetbrains.exposed.gradle.info
 
 import org.jetbrains.exposed.gradle.getColumnName
 import org.jetbrains.exposed.sql.Table
-import org.jetbrains.exposed.sql.`java-time`.date
-import org.jetbrains.exposed.sql.`java-time`.datetime
+import org.jetbrains.exposed.sql.javatime.date
+import org.jetbrains.exposed.sql.javatime.datetime
 import org.jetbrains.exposed.sql.statements.api.ExposedBlob
 import org.jetbrains.exposed.sql.Column as ExposedColumn
 import schemacrawler.schema.Column
