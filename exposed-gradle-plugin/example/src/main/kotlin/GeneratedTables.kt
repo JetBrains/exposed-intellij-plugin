@@ -5,7 +5,7 @@ import kotlin.String
 import org.jetbrains.exposed.dao.id.IntIdTable
 import org.jetbrains.exposed.sql.Column
 import org.jetbrains.exposed.sql.Table
-import org.jetbrains.exposed.sql.`java-time`.datetime
+import org.jetbrains.exposed.sql.javatime.datetime
 
 object Artists : IntIdTable("artists", "artistid") {
   val name: Column<String?> = varchar("name", 120).nullable()
@@ -19,7 +19,7 @@ object Employees : IntIdTable("employees", "employeeid") {
   val title: Column<String?> = varchar("title", 30).nullable()
 
   val reportsTo: Column<Int?> =
-      integer("reportsto").references(employeeId).index("ifk_employeereportsto").nullable()
+      integer("reportsto").references(id).index("ifk_employeereportsto").nullable()
 
   val birthDate: Column<LocalDateTime?> = datetime("birthdate").nullable()
 
@@ -58,7 +58,7 @@ object Albums : IntIdTable("albums", "albumid") {
   val title: Column<String> = varchar("title", 160)
 
   val artistId: Column<Int> =
-      integer("artistid").references(Artists.artistId).index("ifk_albumartistid")
+      integer("artistid").references(Artists.id).index("ifk_albumartistid")
 
   val `value`: Column<Int?> = integer("value").nullable()
 }
@@ -87,12 +87,12 @@ object Customers : IntIdTable("customers", "customerid") {
   val email: Column<String> = varchar("email", 60)
 
   val supportRepId: Column<Int?> =
-      integer("supportrepid").references(Employees.employeeId).index("ifk_customersupportrepid").nullable()
+      integer("supportrepid").references(Employees.id).index("ifk_customersupportrepid").nullable()
 }
 
 object Invoices : IntIdTable("invoices", "invoiceid") {
   val customerId: Column<Int> =
-      integer("customerid").references(Customers.customerId).index("ifk_invoicecustomerid")
+      integer("customerid").references(Customers.id).index("ifk_invoicecustomerid")
 
   val invoiceDate: Column<LocalDateTime> = datetime("invoicedate")
 
@@ -113,13 +113,13 @@ object Tracks : IntIdTable("tracks", "trackid") {
   val name: Column<String> = varchar("name", 200)
 
   val albumId: Column<Int?> =
-      integer("albumid").references(Albums.albumId).index("ifk_trackalbumid").nullable()
+      integer("albumid").references(Albums.id).index("ifk_trackalbumid").nullable()
 
   val mediaTypeId: Column<Int> =
-      integer("mediatypeid").references(MediaTypes.mediaTypeId).index("ifk_trackmediatypeid")
+      integer("mediatypeid").references(MediaTypes.id).index("ifk_trackmediatypeid")
 
   val genreId: Column<Int?> =
-      integer("genreid").references(Genres.genreId).index("ifk_trackgenreid").nullable()
+      integer("genreid").references(Genres.id).index("ifk_trackgenreid").nullable()
 
   val composer: Column<String?> = varchar("composer", 220).nullable()
 
@@ -132,10 +132,10 @@ object Tracks : IntIdTable("tracks", "trackid") {
 
 object InvoiceItems : IntIdTable("invoice_items", "invoicelineid") {
   val invoiceId: Column<Int> =
-      integer("invoiceid").references(Invoices.invoiceId).index("ifk_invoicelineinvoiceid")
+      integer("invoiceid").references(Invoices.id).index("ifk_invoicelineinvoiceid")
 
   val trackId: Column<Int> =
-      integer("trackid").references(Tracks.trackId).index("ifk_invoicelinetrackid")
+      integer("trackid").references(Tracks.id).index("ifk_invoicelinetrackid")
 
   val unitPrice: Column<BigDecimal> = decimal("unitprice", 10, 2)
 
@@ -143,10 +143,10 @@ object InvoiceItems : IntIdTable("invoice_items", "invoicelineid") {
 }
 
 object PlaylistTrack : Table("playlist_track") {
-  val playlistId: Column<Int> = integer("playlistid").references(Playlists.playlistId)
+  val playlistId: Column<Int> = integer("playlistid").references(Playlists.id)
 
   val trackId: Column<Int> =
-      integer("trackid").references(Tracks.trackId).uniqueIndex("ifk_playlisttracktrackid")
+      integer("trackid").references(Tracks.id).uniqueIndex("ifk_playlisttracktrackid")
 
   override val primaryKey: PrimaryKey = PrimaryKey(playlistId, trackId)
 

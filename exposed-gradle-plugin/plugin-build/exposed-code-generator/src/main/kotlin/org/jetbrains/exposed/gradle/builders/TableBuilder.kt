@@ -40,7 +40,7 @@ class TableBuilder(
             builder.addSuperclassConstructorParameter("%S", tableInfo.tableName)
         } else {
             builder.superclass(tableInfo.superclass)
-            builder.addSuperclassConstructorParameter("%S, %S", tableInfo.tableName, getColumnName(idColumn))
+            builder.addSuperclassConstructorParameter("%S, %S", tableInfo.tableName, idColumnInfo.columnName)
         }
     }
 
