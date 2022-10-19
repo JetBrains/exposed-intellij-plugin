@@ -18,7 +18,7 @@ fun applyGeneratorDependencies(implementation: (group: String, artifactId: Strin
     implementation("us.fatehi", "schemacrawler-postgresql", schemaCrawlerVersion)
 
     // utils
-    implementation("org.apache.commons", "commons-text", "1.8")
+    implementation("org.apache.commons", "commons-text", "1.10.0")
     // TODO replace by anything else that can perform topsort without me having to write it from scratch
 //    implementation("com.github.Erdos-Graph-Framework:Erdos:v1.0")
     implementation("com.facebook.presto", "presto-parser", "0.239")
