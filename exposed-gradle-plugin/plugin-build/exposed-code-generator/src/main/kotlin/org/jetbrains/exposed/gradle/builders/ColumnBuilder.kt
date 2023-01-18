@@ -10,14 +10,13 @@ import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
 import org.jetbrains.exposed.dao.id.EntityID
 import org.jetbrains.exposed.gradle.*
 import org.jetbrains.exposed.gradle.info.ColumnInfo
+import org.jetbrains.exposed.gradle.time.getDateTimeProviderFromConfig
 import org.jetbrains.exposed.sql.statements.api.ExposedBlob
 import schemacrawler.schema.Column
 import schemacrawler.schema.IndexType
 import schemacrawler.schema.TableConstraint
 import schemacrawler.schema.TableConstraintType
 import java.math.BigDecimal
-import java.time.LocalDate
-import java.time.LocalDateTime
 import kotlin.reflect.full.valueParameters
 import kotlin.reflect.jvm.javaMethod
 import org.jetbrains.exposed.sql.Column as ExposedColumn
@@ -328,6 +327,7 @@ class IdColumnBuilder(column: Column, data: TableBuilderData? = null) : ColumnBu
  */
 open class MappedColumnBuilder(column: Column, private val columnMapping: String, data: TableBuilderData? = null) : ColumnBuilder(column, data) {
     protected val mappedColumnType = getColumnTypeByFunctionCall(columnMapping)
+    private val dateTimeProvider = getDateTimeProviderFromConfig(data?.configuration?.dateTimeProvider)
 
     private fun getColumnTypeByFunctionCall(functionCall: String) = when (functionCall.takeWhile { it != '(' }) {
         "byte" -> Byte::class
@@ -341,8 +341,8 @@ open class MappedColumnBuilder(column: Column, private val columnMapping: String
         "binary" -> ByteArray::class
         "blob" -> ExposedBlob::class
         "char", "varchar", "text" -> String::class
-        "date" -> LocalDate::class
-        "datetime" -> LocalDateTime::class
+        "date" -> dateTimeProvider.dateClass
+        "datetime" -> dateTimeProvider.dateTimeClass
         else -> throw UnparseableExposedCallException("Unable to determine type of expression $functionCall and generate column.")
     }
 

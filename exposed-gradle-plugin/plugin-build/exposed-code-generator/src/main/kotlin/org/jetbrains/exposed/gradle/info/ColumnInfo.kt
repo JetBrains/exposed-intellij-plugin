@@ -1,11 +1,12 @@
 package org.jetbrains.exposed.gradle.info
 
+import org.jetbrains.exposed.gradle.builders.TableBuilderData
 import org.jetbrains.exposed.gradle.getColumnName
+import org.jetbrains.exposed.gradle.time.getDateTimeProviderFromConfig
 import org.jetbrains.exposed.sql.Table
 import org.jetbrains.exposed.sql.javatime.date
 import org.jetbrains.exposed.sql.javatime.datetime
 import org.jetbrains.exposed.sql.statements.api.ExposedBlob
-import org.jetbrains.exposed.sql.Column as ExposedColumn
 import schemacrawler.schema.Column
 import java.math.BigDecimal
 import java.sql.Blob
@@ -18,9 +19,11 @@ import java.util.*
 import kotlin.reflect.KClass
 import kotlin.reflect.KFunction
 import kotlin.reflect.full.memberFunctions
+import org.jetbrains.exposed.sql.Column as ExposedColumn
 
 @Suppress("UNCHECKED_CAST")
-data class ColumnInfo(val column: Column) {
+data class ColumnInfo(val column: Column, private val data: TableBuilderData? = null) {
+    private val dateTimeProvider = getDateTimeProviderFromConfig(data?.configuration?.dateTimeProvider)
     val columnName = getColumnName(column)
     var columnKClass: KClass<*>? = null
         private set
@@ -38,7 +41,7 @@ data class ColumnInfo(val column: Column) {
             func -> func.name == "binary" && func.parameters.any { p -> p.name == "length" }
         } as KFunction<ExposedColumn<ByteArray>>
 
-        fun <T : Any> initializeColumnParameters(columnClass: KClass<T>, columnFunction: KFunction<ExposedColumn<T>>) {
+        fun <T : Any> initializeColumnParameters(columnClass: KClass<out T>, columnFunction: KFunction<ExposedColumn<T>>) {
             columnKClass = columnClass
             columnExposedFunction = columnFunction
         }
@@ -102,10 +105,10 @@ data class ColumnInfo(val column: Column) {
             Blob::class.javaObjectType -> initializeColumnParameters(ExposedBlob::class, getExposedFunction("blob"))
             UUID::class.javaObjectType -> initializeColumnParameters(UUID::class, getExposedFunction("uuid"))
             Object::class.javaObjectType -> initializeObject()
-            Date::class.javaObjectType, LocalDate::class.javaObjectType ->
-                initializeColumnParameters(LocalDate::class, Table::date)
-            Timestamp::class.javaObjectType, LocalDateTime::class.javaObjectType ->
-                initializeColumnParameters(LocalDateTime::class, Table::datetime)
+            Date::class.javaObjectType, dateTimeProvider.dateClass.javaObjectType ->
+                initializeColumnParameters(dateTimeProvider.dateClass, dateTimeProvider.dateTableFun())
+            Timestamp::class.javaObjectType, dateTimeProvider.dateTimeClass.javaObjectType ->
+                initializeColumnParameters(dateTimeProvider.dateTimeClass, dateTimeProvider.dateTimeTableFun())
             else -> {
                 val name = column.columnDataType.name.toLowerCase()
                 when {

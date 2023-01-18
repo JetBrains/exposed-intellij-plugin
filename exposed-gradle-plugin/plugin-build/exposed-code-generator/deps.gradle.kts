@@ -10,6 +10,7 @@ fun applyGeneratorDependencies(implementation: (group: String, artifactId: Strin
     implementation("org.jetbrains.exposed", "exposed-dao", exposedVersion)
     implementation("org.jetbrains.exposed", "exposed-jdbc", exposedVersion)
     implementation("org.jetbrains.exposed", "exposed-java-time", exposedVersion)
+    implementation("org.jetbrains.exposed", "exposed-kotlin-datetime", exposedVersion)
 
     val schemaCrawlerVersion = "16.15.7"
     implementation("us.fatehi", "schemacrawler", schemaCrawlerVersion)
@@ -43,4 +44,7 @@ fun applyGeneratorDependencies(implementation: (group: String, artifactId: Strin
     implementation("com.impossibl.pgjdbc-ng", "pgjdbc-ng", "0.8.4")
     implementation("com.oracle.database.jdbc", "ojdbc8", "12.2.0.1")
     implementation("com.microsoft.sqlserver", "mssql-jdbc", "8.2.2.jre8")
+
+    // time libraries
+    implementation("org.jetbrains.kotlinx", "kotlinx-datetime", "0.4.0")
 }
