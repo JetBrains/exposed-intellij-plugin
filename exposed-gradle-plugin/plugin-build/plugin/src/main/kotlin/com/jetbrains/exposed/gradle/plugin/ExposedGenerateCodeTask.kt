@@ -114,8 +114,8 @@ abstract class ExposedGenerateCodeTask : DefaultTask() {
     @get:Input
     @get:Option(
         option = "dateTimeProvider",
-        description = "Choose the datetime library to generate with. Options are: \"java-time\" and \"kotlin-time\". " +
-            "Defaults to \"java-time\""
+        description = "Choose the datetime library to generate with. Options are: \"java-time\", \"kotlin-datetime\"" +
+            "and \"jodatime\". Defaults to \"java-time\" if not provided"
     )
     @get:Optional
     abstract val dateTimeProvider: Property<String>

@@ -17,5 +17,6 @@ interface DateTimeProvider {
 fun getDateTimeProviderFromConfig(name: String?) = when (name) {
 	"java-time" -> JavaDateTimeProvider
 	"kotlin-datetime" -> KotlinDateTimeProvider
+	"jodatime" -> JodaDateTimeProvider
 	else -> JavaDateTimeProvider
 }
