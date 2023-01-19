@@ -22,8 +22,8 @@ import kotlin.reflect.full.memberFunctions
 import org.jetbrains.exposed.sql.Column as ExposedColumn
 
 @Suppress("UNCHECKED_CAST")
-data class ColumnInfo(val column: Column, private val data: TableBuilderData? = null) {
-    private val dateTimeProvider = getDateTimeProviderFromConfig(data?.configuration?.dateTimeProvider)
+data class ColumnInfo(val column: Column, private val data: TableBuilderData) {
+    private val dateTimeProvider = getDateTimeProviderFromConfig(data.configuration.dateTimeProvider)
     val columnName = getColumnName(column)
     var columnKClass: KClass<*>? = null
         private set

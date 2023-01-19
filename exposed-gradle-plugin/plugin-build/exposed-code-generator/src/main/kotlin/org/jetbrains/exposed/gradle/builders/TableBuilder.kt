@@ -28,12 +28,12 @@ class TableBuilder(
         table: Table,
         private val data: TableBuilderData
 ) {
-    private val tableInfo = TableInfo(table)
+    private val tableInfo = TableInfo(table, data)
     private val builder = TypeSpec.objectBuilder(getObjectNameForTable(table))
 
     private fun generateExposedIdTableDeclaration() {
         val idColumn = tableInfo.idColumn!! // it's guaranteed to be non-null
-        val idColumnInfo = ColumnInfo(idColumn)
+        val idColumnInfo = ColumnInfo(idColumn, data)
         val idColumnClass = idColumnInfo.columnKClass
         if (tableInfo.superclass == IdTable::class) {
             builder.superclass(tableInfo.superclass.parameterizedBy(idColumnClass!!))

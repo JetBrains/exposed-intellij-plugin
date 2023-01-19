@@ -111,6 +111,15 @@ abstract class ExposedGenerateCodeTask : DefaultTask() {
     @get:OutputDirectory
     abstract val outputDirectory: DirectoryProperty
 
+    @get:Input
+    @get:Option(
+        option = "dateTimeProvider",
+        description = "Choose the datetime library to generate with. Options are: \"java-time\" and \"kotlin-time\". " +
+            "Defaults to \"java-time\""
+    )
+    @get:Optional
+    abstract val dateTimeProvider: Property<String>
+
     @TaskAction
     fun generateExposedCode() {
         val metadataGetter = if (connectionURL.orNull != null) {
@@ -139,7 +148,9 @@ abstract class ExposedGenerateCodeTask : DefaultTask() {
                     true,
                     generatedFileName.orNull,
                     collate.orNull,
-                    columnMappings.getOrElse(emptyMap())
+                    columnMappings.getOrElse(emptyMap()),
+                    dateTimeProvider.orNull
+
             )
             ExposedCodeGenerator(tables, config)
         }
