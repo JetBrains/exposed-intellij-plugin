@@ -76,9 +76,9 @@ data class ColumnInfo(val column: Column, private val data: TableBuilderData) {
                     initializeColumnParameters(String::class, exposedChar)
                 name.contains("text") -> initializeColumnParameters(String::class, getExposedFunction("text"))
                 name.contains("time") ->
-                    initializeColumnParameters(LocalDateTime::class, Table::datetime)
+                    initializeColumnParameters(dateTimeProvider.dateTimeClass, dateTimeProvider.dateTimeTableFun())
                 name.contains("date") ->
-                    initializeColumnParameters(LocalDate::class, Table::date)
+                    initializeColumnParameters(dateTimeProvider.dateClass, dateTimeProvider.dateTableFun())
                 name.contains("binary") || name.contains("bytea") ->
                     initializeColumnParameters(ByteArray::class, exposedBinary)
                 // this is what SQLite occasionally uses for single precision floating point numbers
