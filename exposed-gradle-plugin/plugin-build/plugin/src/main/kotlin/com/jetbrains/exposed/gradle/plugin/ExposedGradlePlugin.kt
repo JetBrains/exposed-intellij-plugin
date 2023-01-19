@@ -24,7 +24,7 @@ abstract class ExposedGradlePlugin : Plugin<Project> {
             it.ipv6Host.set(getStringProperty(project, extension, "ipv6Host"))
             it.connectionProperties.set(extension.connectionProperties)
             it.connectionURL.set(getStringProperty(project, extension, "connectionURL"))
-
+            it.dateTimeProvider.set(getStringProperty(project, extension, "dateTimeProvider"))
             it.packageName.set(getStringProperty(project, extension, "packageName"))
 //            it.generateSingleFile.set(getStringProperty(project, extension, "generateSingleFile")?.toBoolean())
             it.generatedFileName.set(getStringProperty(project, extension, "generatedFileName"))

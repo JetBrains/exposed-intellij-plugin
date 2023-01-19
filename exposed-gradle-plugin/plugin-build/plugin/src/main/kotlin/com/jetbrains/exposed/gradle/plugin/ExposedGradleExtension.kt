@@ -38,4 +38,6 @@ abstract class ExposedGradleExtension @Inject constructor(project: Project) {
     var outputDirectory: DirectoryProperty = objects.directoryProperty().convention(
             project.layout.buildDirectory.dir(DEFAULT_OUTPUT_DIRECTORY)
     )
+
+    var dateTimeProvider: String? = null
 }
