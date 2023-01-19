@@ -4,8 +4,6 @@ import org.jetbrains.exposed.gradle.builders.TableBuilderData
 import org.jetbrains.exposed.gradle.getColumnName
 import org.jetbrains.exposed.gradle.time.getDateTimeProviderFromConfig
 import org.jetbrains.exposed.sql.Table
-import org.jetbrains.exposed.sql.javatime.date
-import org.jetbrains.exposed.sql.javatime.datetime
 import org.jetbrains.exposed.sql.statements.api.ExposedBlob
 import schemacrawler.schema.Column
 import java.math.BigDecimal
@@ -13,8 +11,6 @@ import java.sql.Blob
 import java.sql.Clob
 import java.sql.Date
 import java.sql.Timestamp
-import java.time.LocalDate
-import java.time.LocalDateTime
 import java.util.*
 import kotlin.reflect.KClass
 import kotlin.reflect.KFunction
