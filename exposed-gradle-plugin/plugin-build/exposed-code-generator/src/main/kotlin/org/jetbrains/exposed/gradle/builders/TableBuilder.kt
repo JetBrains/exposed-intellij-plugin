@@ -105,7 +105,7 @@ class TableBuilder(
                     ?: throw ReferencedColumnNotFoundException("Primary key column ${it.fullName} not found.")
         }
         val primaryKey =
-                PropertySpec.builder("primaryKey", ClassName("", "PrimaryKey"), KModifier.OVERRIDE)
+                PropertySpec.builder("primaryKey", ClassName("org.jetbrains.exposed.sql", "Table").nestedClass("PrimaryKey"), KModifier.OVERRIDE)
                         .initializer(CodeBlock.of("%M(${primaryKeys.joinToString(", ")})", MemberName("", "PrimaryKey")))
                         .build()
         builder.addProperty(primaryKey)
